@@ -1,4 +1,4 @@
-const app = require('./test-app')
+const { app, testApp, appWithoutDomain } = require('./test-app')
 const appUri = app.get('jwksUri')
 
 const fakeJWKS = {
@@ -42,6 +42,28 @@ const mockJWKSClient = uri => () => {
 // various contexts
 const afterContext = { type: 'after' }
 const errorContext = { type: 'error' }
+const externalContext = { type: 'before', params: { provider: 'external' } }
+const serverContext = { type: 'before', params: { provider: '' } }
+const fromAuth0Context = {
+  type: 'before',
+  params: {
+    provider: 'external',
+    headers: {
+      authorization: null
+    },
+    ip: '34.195.142.251'
+  }
+}
+const notFromAuth0Context = {
+  type: 'before',
+  params: {
+    provider: 'external',
+    headers: {
+      authorization: null
+    },
+    ip: '66.66.66.66'
+  }
+}
 const noAuthorizationHeaderContext = {
   type: 'before',
   params: {
@@ -61,6 +83,7 @@ const malformedTokenContext = {
   }
 }
 const unknownMemberContext = {
+  app,
   type: 'before',
   params: {
     provider: 'external',
@@ -92,17 +115,25 @@ const currentValidTokenMemberContext = {
 
 module.exports = {
   app,
+  testApp,
+  appWithoutDomain,
   appUri,
   fakeJWKS,
   signingKey,
   mockKeyService,
   mockJWKSClient,
   jwts: {
-    unknownMemberJWT
+    unknownMemberJWT,
+    invalidIssuerJWT,
+    currentMemberJWT
   },
   contexts: {
     afterContext,
     errorContext,
+    externalContext,
+    serverContext,
+    fromAuth0Context,
+    notFromAuth0Context,
     noAuthorizationHeaderContext,
     malformedTokenContext,
     unknownMemberContext,

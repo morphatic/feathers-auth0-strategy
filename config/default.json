@@ -1,6 +1,11 @@
 {
   "host": "localhost",
   "port": 3030,
+  "paginate": {
+    "default": 10,
+    "max": 50
+  },
+  "auth0domain": "example",
   "jwksUri": "https://example.auth0.com/.well-known/jwks.json",
   "jwtOptions": {
     "algorithms": [

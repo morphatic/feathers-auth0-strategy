@@ -1,4 +1,5 @@
 {
+  "auth0domain": "example",
   "jwksUri": "https://example.auth0.com/.well-known/jwks.json",
   "jwtOptions": {
     "algorithms": [
