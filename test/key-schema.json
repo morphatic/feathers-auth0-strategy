@@ -1,0 +1,62 @@
+{
+  "title": "Keys",
+  "description": "Signing keys for JWTs used to access the API.",
+  "required": [
+    "alg",
+    "kty",
+    "use",
+    "x5c",
+    "n",
+    "e",
+    "kid",
+    "x5t"
+  ],
+  "uniqueItemProperties": [
+    "kid"
+  ],
+  "properties": {
+    "alg": {
+      "title": "Algorithm",
+      "description": "The specific cryptographic algorithm used with the key.",
+      "type": "string"
+    },
+    "kty": {
+      "title": "Family",
+      "description": "The family of cryptographic algorithms used with the key.",
+      "type": "string"
+    },
+    "use": {
+      "title": "Usage",
+      "description": "How the key was meant to be used; `sig` represents the signature.",
+      "type": "string"
+    },
+    "x5c": {
+      "title": "x.509 Chain",
+      "description": "The x.509 certificate chain. The first entry in the array is the certificate to use for token verification; the other certificates can be used to verify this first certificate.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "n": {
+      "title": "Modulus",
+      "description": "The modulus for a standard pem.",
+      "type": "string"
+    },
+    "e": {
+      "title": "Exponent",
+      "description": "The exponent for a standard pem.",
+      "type": "string"
+    },
+    "kid": {
+      "title": "Key ID",
+      "description": "The unique identifier for the key.",
+      "type": "string"
+    },
+    "x5t": {
+      "title": "Thumbprint",
+      "description": "The thumbprint of the x.509 cert (SHA-1 thumbprint).",
+      "type": "string"
+    }
+  }
+}

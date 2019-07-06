@@ -1,0 +1,22 @@
+{
+  "title": "Users",
+  "description": "Minimal Users schema for use with this plugin.",
+  "required": [
+    "user_id"
+  ],
+  "uniqueItemProperties": [
+    "user_id"
+  ],
+  "properties": {
+    "user_id": {
+      "title": "Auth0 UserID",
+      "description": "The user_id from Auth0 for this member.",
+      "type": "string"
+    },
+    "currentToken": {
+      "title": "currentToken",
+      "description": "The most recent valid token associated with a member.",
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "jwksUri": "https://example.auth0.com/.well-known/jwks.json",
+  "jwtOptions": {
+    "algorithms": [
+      "RS256"
+    ],
+    "audience": [
+      "https://example.auth0.com/api/v2/",
+      "https://example.auth0.com/userinfo"
+    ],
+    "ignoreExpiration": false,
+    "issuer": "https://example.auth0.com/"
+  }
+}

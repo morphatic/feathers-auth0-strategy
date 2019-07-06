@@ -1,0 +1,59 @@
+{
+  "name": "@morphatic/feathers-auth0-authorize",
+  "version": "0.0.1",
+  "private": false,
+  "description": "Middleware to authorize REST and real-time (socket.io/primus) connections to a FeathersJS server",
+  "main": "lib/",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "changelog": "github_changelog_generator && git add CHANGELOG.md && git commit -am \"Updating changelog\"",
+    "coverage": "nyc report --reporter=text-lcov | coveralls",
+    "eslint": "eslint lib/. test/. --config .eslintrc.json",
+    "mocha": "mocha --recursive --timeout 10000",
+    "publish": "git push origin --tags && npm run changelog && git push origin",
+    "release:major": "npm version major && npm publish",
+    "release:minor": "npm version minor && npm publish",
+    "release:patch": "npm version patch && npm publish",
+    "release:prerelease": "npm version prerelease && npm publish --tag pre",
+    "test": "npm run eslint && nyc npm run mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/morphatic/feathers-auth0-authorize.git"
+  },
+  "keywords": [
+    "auth0",
+    "feathers",
+    "feathers-plugin",
+    "hook",
+    "jwt"
+  ],
+  "author": "Morgan Benton <morgan.benton@gmail.com> (https://morphatic.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/morphatic/feathers-auth0-authorize/issues"
+  },
+  "homepage": "https://github.com/morphatic/feathers-auth0-authorize#readme",
+  "devDependencies": {
+    "@feathersjs/configuration": "^2.0.6",
+    "@feathersjs/feathers": "^3.3.1",
+    "eslint": "^5.16.0",
+    "feathers-nedb": "^4.0.2",
+    "mocha": "^6.1.4",
+    "nedb": "^1.8.0",
+    "nyc": "^14.1.1"
+  },
+  "dependencies": {
+    "@feathersjs/errors": "^3.3.6",
+    "feathers-hooks-common": "^4.20.7",
+    "feathers-memory": "^3.0.2",
+    "jsonwebtoken": "^8.5.1",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.4"
+  },
+  "engines": {
+    "node": ">= 8"
+  }
+}
