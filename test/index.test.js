@@ -4,6 +4,7 @@ const {
   app,
   testApp,
   appWithoutDomain,
+  makeClient,
   appUri,
   fakeJWKS,
   signingKey,
@@ -23,6 +24,7 @@ const {
   auth0Setup,
   addHeadersAndIP,
   auth0Hooks,
+  disconnectWithError,
   auth0SocketIO,
   auth0Transports
 } = require('../lib')({
@@ -409,10 +411,59 @@ describe('An authorization hook has', () => {
     })
   })
 
+  describe('a disconnectWithError() function', () => {
+    // start and stop the server
+    let server, socket
+    before(done => {
+      const client = makeClient({ token: 'bad_token' })
+      server = testApp.listen(3030)
+      server.on('listening', () => {
+        console.log('listening') // eslint-disable-line
+        testApp.io.sockets.on('connection', sock => {
+          socket = sock
+          console.log('somebody connected!') // eslint-disable-line
+          socket.on('authenticate', token => {
+            console.log('received: ', token, typeof token) // eslint-disable-line
+            if (token === 'bad_token') {
+              console.log('disconnecting...') // eslint-disable-line
+              disconnectWithError(socket, 'Bad token received.', 'bad_token')
+              done()
+            }
+          })
+        })
+      })
+    })
+
+    after(done => {
+      socket.disconnect('see ya!') 
+      server.close(() => {
+        console.log('closing...') // eslint-disable-line
+        done()
+      })
+    })
+
+    it('is a function', () => {
+      assert(typeof disconnectWithError === 'function', 'disconnectWithError() is not a function.')
+    })
+
+    it('will close a socket connection and return an error', () => {
+      console.log('starting test...') // eslint-disable-line
+      try {
+        // const client = makeClient({ token: 'bad_token' })
+      } catch (err) {
+        console.log(err) // eslint-disable-line
+      }
+    })
+
+  })
+
   describe('an auth0SocketIO() function', () => {
     it('is a function', () => {
       assert(typeof auth0SocketIO === 'function', 'auth0SocketIO() is not a function.')
     })
 
+    it('sets for authentication upon connecting', () => {
+
+    })
   })
 })

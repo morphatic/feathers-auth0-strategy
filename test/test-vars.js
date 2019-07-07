@@ -1,4 +1,4 @@
-const { app, testApp, appWithoutDomain } = require('./test-app')
+const { app, testApp, appWithoutDomain, makeClient } = require('./test-app')
 const appUri = app.get('jwksUri')
 
 const fakeJWKS = {
@@ -117,6 +117,7 @@ module.exports = {
   app,
   testApp,
   appWithoutDomain,
+  makeClient,
   appUri,
   fakeJWKS,
   signingKey,
