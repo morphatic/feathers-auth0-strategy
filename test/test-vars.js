@@ -1,4 +1,4 @@
-const { app, testApp, appWithoutDomain, makeClient } = require('./test-app')
+const app = require('./test-app')
 const appUri = app.get('jwksUri')
 
 const fakeJWKS = {
@@ -22,28 +22,23 @@ const unknownMemberJWT = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhdXRoM
 const invalidIssuerJWT = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Imdvb2RLaWQifQ.eyJzdWIiOiJhdXRoMHxjdXJyZW50VmFsaWRUb2tlbk1lbWJlciIsImF1ZCI6WyJodHRwczovL2V4YW1wbGUuYXV0aDAuY29tL2FwaS92Mi8iLCJodHRwczovL2V4YW1wbGUuYXV0aDAuY29tL3VzZXJpbmZvIl0sImlzcyI6Imh0dHBzOi8vZXhhbXBsZS5hdXRoMC5jb20ifQ.p5BUlFfpyASaGgxSVoQkwMng97a64EvuvTyS7GafEkHchpWF8LIYvSc6q8gDDydFsfqPhXd1TNL-AfgctaYDVGamNQH3YvTW1Uock7741OaECcoQSJ4NDF_Qai6XpXN6Sl-wysK3kcDtYdOgDJwiHS9Y_k3sD_5YK0djawIRi-37yHmYhJkc__fqCDGawEfDl2FNq45iiEWh_y8dYnfpTsvMMaygQ8wNi--MukM5f3NPTvP5p4wH_gC-hNnTLgb6KBLbCgsqvA6-kPOXdVYqWIHNvJjR_SmYhAk6sNgj00Vg_Hw17rxRH05jQ95CAo2fIFwjtZIU16s9nKsYn13n6A'
 const currentMemberJWT = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Imdvb2RLaWQifQ.eyJzdWIiOiJhdXRoMHxjdXJyZW50VmFsaWRUb2tlbk1lbWJlciIsImF1ZCI6WyJodHRwczovL2V4YW1wbGUuYXV0aDAuY29tL2FwaS92Mi8iLCJodHRwczovL2V4YW1wbGUuYXV0aDAuY29tL3VzZXJpbmZvIl0sImlzcyI6Imh0dHBzOi8vZXhhbXBsZS5hdXRoMC5jb20vIn0.Gcb-DG_z5K91CdwxBeJda7bBypXdNH7Uyg5kPT4fWDhOgLB1kxycJYJPCmrAPy1sbqaaQ2IG_94q622RaKn1FKskiurne1x89ZFu-39ivQUPNww6NHft2jdVnr4fxFqaEw51ErVgxaQDHXOQfiX9tsJhB6unSIJQixQFYBjJfMPDLKzhg6ZXp28TGIlDkUjFSLUkLIfZ1pg4yki9rk1kwxLZ_Uq7vaDFVKDxwPOpvX14S3_nAFje9cKZHdL9-R216nNXiaYdl4HvPSFsuH-DzxssCGiQ3tgWMCqLeEUcIn5cPQoY_Hlz00kg4GlGGPhgSHn7i0StcasIyBF3G8IWIA'
 
-// mocks
-const mockKeyService = {
-  get: kid => kid === 'goodKid' ?
-    Promise.resolve(fakeJWKS.keys[0]) :
-    Promise.reject(new Error('No record found for id \'badKid\'')),
-  create: () => Promise.resolve(fakeJWKS.keys[0])
-}
-const mockJWKSClient = uri => () => {
-  if (uri === appUri) return Promise.resolve(fakeJWKS)
-  if (uri === 'noMatchingKeysURI') {
-    const copyOfFakeJWKS = JSON.parse(JSON.stringify(fakeJWKS))
-    copyOfFakeJWKS.keys[0].kid = 'nonMatchingKid'
-    return Promise.resolve(copyOfFakeJWKS)
-  }
-  throw 'The URI for the JWKS was incorrect'
-}
-
 // various contexts
-const afterContext = { type: 'after' }
-const errorContext = { type: 'error' }
-const externalContext = { type: 'before', params: { provider: 'external' } }
-const serverContext = { type: 'before', params: { provider: '' } }
+const afterContext = {
+  app,
+  type: 'after',
+  params: {
+    provider: ''
+  }
+}
+const errorContext = {
+  app,
+  type: 'error',
+  params: {
+    provider: ''
+  }
+}
+const externalContext = { app, type: 'before', params: { provider: 'external' } }
+const serverContext = { app, type: 'before', params: { provider: '' } }
 const fromAuth0Context = {
   type: 'before',
   params: {
@@ -64,21 +59,33 @@ const notFromAuth0Context = {
     ip: '66.66.66.66'
   }
 }
-const noAuthorizationHeaderContext = {
+const noAuthenticationContext = {
+  app,
   type: 'before',
   params: {
     provider: 'external',
-    headers: {
-      authorization: null
+    authentication: null
+  }
+}
+const noAuthorizationHeaderContext = {
+  app,
+  type: 'before',
+  params: {
+    provider: 'external',
+    authentication: {
+      accessToken: null,
+      strategy: 'auth0'
     }
   }
 }
 const malformedTokenContext = {
+  app,
   type: 'before',
   params: {
     provider: 'external',
-    headers: {
-      authorization: 'iamnotwellformed'
+    authentication: {
+      accessToken: 'iamnotwellformed',
+      strategy: 'auth0'
     }
   }
 }
@@ -87,8 +94,21 @@ const unknownMemberContext = {
   type: 'before',
   params: {
     provider: 'external',
-    headers: {
-      authorization: 'Bearer ' + unknownMemberJWT
+    authentication: {
+      accessToken: unknownMemberJWT,
+      strategy: 'auth0'
+    }
+  }
+}
+const alreadyAuthenticatedContext = {
+  app,
+  type: 'before',
+  params: {
+    provider: 'external',
+    authentication: {
+      accessToken: currentMemberJWT,
+      strategy: 'auth0',
+      authenticated: true
     }
   }
 }
@@ -97,8 +117,9 @@ const invalidIssuerMemberContext = {
   type: 'before',
   params: {
     provider: 'external',
-    headers: {
-      authorization: 'Bearer ' + invalidIssuerJWT
+    authentication: {
+      accessToken: invalidIssuerJWT,
+      strategy: 'auth0'
     }
   }
 }
@@ -107,22 +128,66 @@ const currentValidTokenMemberContext = {
   type: 'before',
   params: {
     provider: 'external',
-    headers: {
-      authorization: 'Bearer ' + currentMemberJWT
+    authentication: {
+      accessToken: currentMemberJWT,
+      strategy: 'auth0'
     }
+  }
+}
+const createValidTokenConnectionContext = {
+  app,
+  type: 'after',
+  method: 'create',
+  params: {
+    connection: {
+      authentication: {
+        accessToken: currentMemberJWT,
+        strategy: 'auth0'
+      }
+    },
+    provider: 'socketio',
+  },
+  result: {
+    accessToken: currentMemberJWT,
+    strategy: 'auth0'
+  }
+}
+const removeValidTokenConnectionContext = {
+  app,
+  type: 'after',
+  method: 'remove',
+  params: {
+    connection: {
+      authentication: {
+        accessToken: currentMemberJWT,
+        strategy: 'auth0'
+      }
+    },
+    provider: 'socketio',
+  },
+  result: {
+    accessToken: currentMemberJWT,
+    strategy: 'auth0'
+  }
+}
+const noConnectionContext = {
+  app,
+  type: 'after',
+  method: 'create',
+  params: {
+    provider: 'socketio',
+  },
+  result: {
+    accessToken: currentMemberJWT,
+    strategy: 'auth0'
   }
 }
 
 module.exports = {
   app,
-  testApp,
-  appWithoutDomain,
-  makeClient,
   appUri,
   fakeJWKS,
   signingKey,
-  mockKeyService,
-  mockJWKSClient,
   jwts: {
     unknownMemberJWT,
     invalidIssuerJWT,
@@ -135,10 +200,15 @@ module.exports = {
     serverContext,
     fromAuth0Context,
     notFromAuth0Context,
+    noAuthenticationContext,
     noAuthorizationHeaderContext,
     malformedTokenContext,
     unknownMemberContext,
+    alreadyAuthenticatedContext,
     invalidIssuerMemberContext,
-    currentValidTokenMemberContext
+    currentValidTokenMemberContext,
+    createValidTokenConnectionContext,
+    removeValidTokenConnectionContext,
+    noConnectionContext
   }
 }
