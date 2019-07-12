@@ -2,11 +2,9 @@ const assert = require('assert')
 const feathers = require('@feathersjs/feathers')
 const Auth0Strategy = require('../lib/strategy')
 const Auth0Service = require('../lib/service')
-const authenticate = require('../lib/hooks/authenticate')
+const { authenticate, hooks } = require('@feathersjs/authentication')
 const fromAuth0 = require('../lib/hooks/from-auth0')
-const connection = require('../lib/hooks/connection')
-const events = require('../lib/hooks/events')
-
+const { connection, events } = hooks
 const {
   app,
   appUri,
@@ -455,7 +453,7 @@ describe('The Auth0Service', () => {
         assert.strictEqual(err.name, 'NotAuthenticated', '\'err.name\' should be \'NotAuthenticated\'')
         assert.strictEqual(
           err.message,
-          'The `authenticate` hook must be used as a `before` hook',
+          'The authenticate hook must be used as a before hook',
           'wrong message'
         )
       }
@@ -470,7 +468,7 @@ describe('The Auth0Service', () => {
         assert.strictEqual(err.name, 'NotAuthenticated', '\'name\' should be \'NotAuthenticated\'')
         assert.strictEqual(
           err.message,
-          'The `authenticate` hook must be used as a `before` hook',
+          'The authenticate hook must be used as a before hook',
           'wrong message'
         )
       }
@@ -489,7 +487,7 @@ describe('The Auth0Service', () => {
       }
       catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
-        assert.strictEqual(err.message, 'The authenticate hook should not be used for the authenticate service', 'wrong message')
+        assert.strictEqual(err.message, 'The authenticate hook does not need to be used on the authentication service', 'wrong message')
       }
     })
 
@@ -500,7 +498,7 @@ describe('The Auth0Service', () => {
       }
       catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
-        assert.strictEqual(err.message, 'Not authenticated.', 'wrong message')
+        assert.strictEqual(err.message, 'Not authenticated', 'wrong message')
       }
     })
 

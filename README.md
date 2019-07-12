@@ -1,199 +1,351 @@
 # FeathersJS Auth0 Authorization Middleware
 
-[![Build Status](https://travis-ci.org/morphatic/feathers-auth0-authorize.svg?branch=master)](https://travis-ci.org/morphatic/feathers-auth0-authorize)
-[![Coverage Status](https://coveralls.io/repos/github/morphatic/feathers-auth0-authorize/badge.svg?branch=master)](https://coveralls.io/github/morphatic/feathers-auth0-authorize?branch=master)
-[![npm version](https://badge.fury.io/js/%40morphatic%2Ffeathers-auth0-authorize.svg)](https://www.npmjs.com/package/@morphatic/feathers-auth0-authorize)
-[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/morphatic/astrologyjs/master/LICENSE)
+[![Build Status](https://travis-ci.org/morphatic/feathers-auth0-strategy.svg?branch=master)](https://travis-ci.org/morphatic/feathers-auth0-strategy)
+[![Coverage Status](https://coveralls.io/repos/github/morphatic/feathers-auth0-strategy/badge.svg?branch=master)](https://coveralls.io/github/morphatic/feathers-auth0-strategy?branch=master)
+[![npm version](https://badge.fury.io/js/%40morphatic%2Ffeathers-auth0-strategy.svg)](https://www.npmjs.com/package/@morphatic/feathers-auth0-strategy)
+[![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/morphatic/feathers-auth0-strategy/master/LICENSE)
 
-## Who should use this middleware
+## What this package does
 
-This middleware is designed specifically for the following scenario:
+This package does two things:
+
+1. It implements a [custom `auth0` authentication strategy for FeathersJS](https://crow.docs.feathersjs.com/api/authentication/strategy.html). The `Auth0Strategy` verifies JWTs ([JSON Web Tokens](https://jwt.io/)) using the asymmetric `RS256` algorithm ([the recommended practice](https://auth0.com/blog/navigating-rs256-and-jwks/)), rather than the `HS256` algorithm that is built into the FeathersJS [`JwtStrategy`](https://crow.docs.feathersjs.com/api/authentication/jwt.html#jwtstrategy).
+2. It implements a [custom FeathersJS authentication service](https://crow.docs.feathersjs.com/api/authentication/service.html#customization). The `Auth0Service` extends, and is designed to be used in place of the default [`AuthenticationService`](https://crow.docs.feathersjs.com/api/authentication/service.html). The primary benefits of the `Auth0Service` are that it:
+   1. Removes the necessity for developers to specify the `authentication.secret` configuration property in their apps. The client secret is irrelevant to `RS256` token verification scenarios. The default `AuthenticationService` will throw an error if the `secret` is not specified.
+   2. Automatically configures the hooks necessary to force all clients to be authenticated when accessing API services. By default, all services will require authentication **_except_** the `/authentication` service itself.
+   3. Implements an IP address whitelist that will allow requests coming directly from Auth0 to access the API without authentication. The IP whitelist can be configured by implementers.
+
+This package has been designed and tested for use with the latest version of FeathersJS (v4.0, aka "Crow"). Otherwise, this package is designed to be completely compatible with FeathersJS authentication, and should integrate seamlessly with other FeathersJS packages or plugins that use authentication. Note, the `Auth0Strategy` may be used on its own without also using the `Auth0Service` but this will require developers to explicitly add authentication hooks to services (which is the standard practice already). The `Auth0Service` should only be used if developers are sure that they want to require authentication for ALL non-authentication services.
+
+## Who should use this package
+
+This package is designed specifically for the following scenario:
 
 * [FeathersJS](https://feathersjs.com/) is being used solely as a backend API server
 * [Auth0](https://auth0.com/) is being used for authentication from a frontend client written with, e.g. Vue, React, or Angular
-* Auth0 is configured to sign access tokens using the `RS256` algorithm (the recommended practice)
+* Auth0 is configured to sign access tokens using the **`RS256`** algorithm ([the recommended practice](https://auth0.com/blog/navigating-rs256-and-jwks/))
 
-For a fuller discussion of this scenario and why I chose to write this plugin, [check out this blog post](https://morphatic.com/2019/04/14/authorizing-feathers-api-requests-for-vue-react-angular-apps-using-auth0/).
+For a fuller discussion of this scenario and why I chose to write this package, [check out this blog post](https://morphatic.com/2019/04/14/authorizing-feathers-api-requests-for-vue-react-angular-apps-using-auth0/).
 
-## Who should NOT use this middleware
+## Who should NOT use this package
 
-If any of the following scenarios apply to your app, there are likely better options than this middleware:
+If any of the following scenarios apply to your app, there are likely better options than this package:
 
-* If you are using FeathersJS as **BOTH** frontend and backend, you're probably much better off using the [`@feathersjs/authentication`](https://docs.feathersjs.com/api/authentication/server.html) that's already part of the framework.
-* If your access tokens are signed with the `HS256` algorithm (see: [How can I check the signature algorithm?](https://auth0.com/docs/api-auth/tutorials/verify-access-token#check-the-signature-algorithm)), there are easier ways to configure Feathers to verify them.
+* If you are using FeathersJS as **BOTH** frontend and backend, you're probably much better off simply using the [`@feathersjs/authentication`](https://docs.feathersjs.com/api/authentication/server.html) that's already part of the framework.
+* If your access tokens are signed with the `HS256` algorithm (see: [How can I check the signature algorithm?](https://auth0.com/docs/api-auth/tutorials/verify-access-token#check-the-signature-algorithm)), there are easier ways to configure Feathers to verify them, namely to use the built-in `JwtStrategy`.
 
 ## Installation and Configuration
 
-To install this package, from the root of your package:
+To install this package, from the root of your FeathersJS app:
 
 ```console
-npm install --save @morphatic/feathers-auth0-authorize
+npm install --save @morphatic/feathers-auth0-strategy
 ```
 
-After installation, you need to make sure that you have a `users` service.
+After installation, you need to make sure that you have a `users` service. Customization of the `users` service will be discussed below.
 
-### Add Auth0 domain to server config
+### Update the app configuration
 
-In your server config file (usually `config/default.json`), you'll need to add the following:
+In your server config file (usually `config/default.json`), at a minimum, you'll need to add the following:
 
 ```json
 {
-  "auth0domain": "example"
+  "authentication": {
+    "auth0": {
+      "domain": "example"
+    },
+    "authStrategies": [
+      "auth0"
+    ],
+    "entity": "users",
+    "entityId": "user_id",
+    "service": "users"
+  }
 }
 ```
 
-The package assumes that your full Auth0 domain name is something like `https://example.auth0.com/`. You should only add the "example" part to your config.
+The package assumes that your full Auth0 domain name is something like `https://example.auth0.com/`. You should only add the "example" part to your config. Note that you do **NOT** need to specify a `secret` since the `RS256` algorithm doesn't use them. You also do not need to specify `jwtOptions` as these are handled automatically by this package.
 
 ### Set up the `users` service
 
-It's likely that you already have a `users` service in your app. If you don't you'll need to create one, e.g. by [using the `feathers-plus` generator](https://generator.feathers-plus.com/get-started/#generate-service). Assuming you already have a `users` service, you'll need to ensure that your model has two string properties: `user_id` and `currentToken`. `user_id` will hold the `user_id` generated by Auth0 when the user's account was created. `currentToken` will be used to store already-verified tokens, to prevent the app from having to re-verify tokens on every request or connection. For reference, [a JSON Schema representation of a minimal `users` service](https://github.com/morphatic/feathers-auth0-authorize/blob/master/test/user-schema.json) is included in this repo.
+It's likely that you already have a `users` service in your app. If you don't, you'll need to create one. Assuming you already have a `users` service, you'll need to ensure that your model has a `user_id` property. The `user_id` field will hold the `user_id` generated by Auth0 when the user's account was created. For reference, [a JSON Schema representation of a minimal `users` service](https://github.com/morphatic/feathers-auth0-authorize/blob/master/test/user-schema.json) is included in this repo.
 
-If you'd like to use a different service for storing the `user_id` and `currentToken`, this is configurable using the `options` described below.
+If you'd like to use a different service for storing user information or the `user_id` key, this is configurable using the `options` described below.
 
 ## Basic usage
 
 You'll need to do some configuration on both the server and in your clients.
 
-### Server setup
+### Server setup when using `Auth0Service`
 
-In your main server configuration (usually `src/app.js`):
+If you choose to use **BOTH** `Auth0Strategy` and `Auth0Service`, in your main server configuration (usually `src/app.js`):
 
 ```js
 // src/app.js
 
-// at the top of the file where everything else gets imported...
+// import the service and strategy classes
+const { Auth0Service, Auth0Strategy } = require('@morphatic/feathers-auth0-strategy')
 
-// import the middleware generator
-const auth0Generator = require('@morphatic/feathers-auth0-authorize')
+// instantiate the service
+const auth0Service = new Auth0Service(app)
 
-// extract the part you need
-// the `auth0Transports` function enables authorization for REST and Socket.IO
-const { auth0Transports } = auth0Generator()
+// register the strategy
+auth0Service.register('auth0', new Auth0Strategy())
 
-// ... other configuration ...
-// if you're using the feathers-plus generators,
-// add it in the middleware configuration section
-
-// !code: config_middle
-// tell feathers to load it
-app.configure(auth0Transports)
-// !end
-
-// in any case, it should come BEFORE the 404 handler
-app.use(express.notFound()) // <-- BEFORE this line
+// register the `/authentication` service with feathers
+app.use('/authentication', auth0Service)
 ```
 
-There are many options that make this package highly configurable. These are explained below.
+### Server setup when using `AuthenticationService`
 
-### Client Setup
+Using the FeathersJS default `AuthenticationService` gives you more control, but requires more configuration. If you choose to use **ONLY** `Auth0Strategy`, your app config (`config/default.json`) will need to look like this (note the addition of a `secret` prop that must be set, but is not used):
 
-From your frontend app, you'll need to set up any services that access your feathers API as follows. I've used this in a Vue app, but it should work equally well for any other frontend framework like React or Angular. In this example, I'm imagining that I'm developing the proverbial To Do List app, and that my To Do list items are stored in my feathers backend.
-
-#### REST example
-
-```js
-// src/services/feathers.js
-import feathers from '@feathersjs/feathers'
-import rest from '@feathersjs/rest-client'
-import axios from 'axios'
-
-// standard feathers client setup
-const app = feathers()
-const rc = rest('https://api.example.com') // the URL to your feathers API server
-app.configure(rc.axios(axios))
-
-export const api = app
-
-// AFTER authentication against Auth0, you should have
-// an access token, which you can add to the api with:
-
-api.rest.defaults.headers.common['Authorization'] = `Bearer ${token}`
-
-// And then api calls can be made as you normally would, e.g.
-
-const todos = await api.service('todos').find({})
+```json
+{
+  "authentication": {
+    "auth0": {
+      "domain": "example"
+    },
+    "authStrategies": [
+      "auth0"
+    ],
+    "entity": "users",
+    "entityId": "user_id",
+    "secret": "i_am_not_used_but_must_be_set",
+    "service": "users"
+  }
+}
 ```
 
-#### SocketIO example
+And then in your app setup (usually `src/app.js`):
 
 ```js
-// src/services/feathers.js
-import feathers from '@feathersjs/feathers'
-import socketio from '@feathersjs/socketio-client'
-import io from 'socket.io-client'
+// src/app.js
 
-const app = feathers()
-const server = io('https://api.example.com') // the URL to your feathers API server
+// import the service, strategy, and hooks
+const { AthenticationService, authenticate } = require('@feathersjs/authentication')
+const { Auth0Strategy, fromAuth0 } = require('@morphatic/feathers-auth0-strategy')
+const { isProvider, some, unless } = require('feathers-hooks-common')
 
-// IMPORTANT: setup the flow for handling authentication
-server.on('connect', socket => {
-  socket.emit('authenticate', { token })
-    .on('authenticated', msg => {
-      // do some stuff...
-    })
-    .on('unauthorized', (err, callback) => {
-      if (err.data.type === 'UnauthorizedError' || err.data.code === 'invalid_token') {
-        // do some stuff...
-      }
-    })
+// instantiate the service
+const authService = new AuthenticationService(app)
+
+// register the strategy
+authService.register('auth0', new Auth0Strategy())
+
+// register the `/authentication` service with feathers
+app.use('/authentication', authService)
+
+// middleware to configure the app to pass IP addresses into the hook
+// context (for use with the `fromAuth0()` hook)
+const passIPAddress = (req, res, next) => {
+  // `x-real-ip` is for when is behind an nginx reverse proxy
+  req.feathers.ip = req.headers['x-real-ip'] || req.ip
+  // carry on...
+  next()
+}
+
+// register a "todos" service that uses the middleware
+app.use('/todos', passIPAddress)
+
+// configure other services to use it, e.g. the following config
+// will require authentication for all external requests that don't
+// originate from Auth0 servers
+app.service('todos').hooks({
+  before: [
+    unless(some(isProvider('server'), fromAuth0()), authenticate('auth0'))
+  ]
 })
-// then register the transport with your feathers client
-app.configure(socketio(server))
-
-export const api = app
-
-// usage is the same as the example above
 ```
+
+Additional configuration options are explained below.
+
+### Client setup
+
+From your frontend app, you'll need to configure the standard [`@feathersjs/authentication-client`](https://crow.docs.feathersjs.com/api/authentication/client.html) as follows:
+
+```js
+// NOTE: this is almost exactly the same as standard client setup described in the official docs
+const feathers = require('@feathersjs/feathers');
+const socketio = require('@feathersjs/socketio-client');
+const io = require('socket.io-client');
+const auth = require('@feathersjs/authentication-client');
+
+const socket = io('http://api.feathersjs.com');
+const api = feathers();
+
+// Setup the transport (Rest, Socket, etc.) here
+api.configure(socketio(socket));
+
+// Make sure the authentication client is configured to use the `auth0` strategy
+api.configure(auth({
+  jwtStrategy: 'auth0', // <-- IMPORTANT!!!
+  storage: LocalForage,
+  storageKey: 'auth0_token'
+}))
+```
+
+Depending on your client setup, you'll want to make sure that the authentication client is able to find the access tokens that have been acquired from Auth0. The above example assumes that the tokens are stored in the browser using [`LocalForage`](https://github.com/localForage/localForage) under the `auth0_token` key, but this is entirely dependent upon the specific setup of your app.
+
+#### Client usage example
+
+The key thing to remember here, is that FeathersJS is **NOT** being used to authenticate users in your client app. The authentication process is being handled by Auth0, and will result in an access token being stored in the client app, usually in some place like local storage, a cookie, or using a package like `LocalForage`. FeathersJS does NOT create or issue a JWT (access token) for you, but rather just **verifies that the access token being sent from your app (i.e. the one acquired from Auth0) is valid and unexpired**.
+
+As such, setting up authentication in your client is beyond the scope of this documentation. Refer to [the Auth0 docs](https://auth0.com/docs) for more information on this topic. You just need to make sure that the access tokens that you receive from Auth0 are stored in a place that `@feathersjs/authentication-client` expects to find them (see the config example above).
+
+So, assuming your user has successfully logged in, and a valid access token is stored in the browser somewhere, the following should "just work"™:
+
+```js
+// using async/await
+const getTodos = async () => {
+  let todos = []
+  try {
+    // if configured correctly, your feathers client should get
+    // the access token from where it is stored and automatically
+    // send it in the `Authorization` header for the request
+    const result = await app.service('todos').find({})
+    todos = result.data
+  } catch (err) {
+    // if the access token was missing or invalid (e.g. expired)
+    // an error will be thrown and you need to handle (re)authenticating
+    // your client app
+  }
+  return todos
+}
+
+// using promises
+app.service('todos').find({})
+  .then(
+    result => {
+      // if configured correctly, your feathers client should get
+      // the access token from where it is stored and automatically
+      // send it in the `Authorization` header for the request
+      todos = result.data
+    }
+  )
+  .catch(
+    err => {
+      // if the access token was missing or invalid (e.g. expired)
+      // an error will be thrown and you need to handle (re)authenticating
+      // your client app
+    }
+  )
+```
+
+## Custom configuration
+
+`Auth0Strategy` and `Auth0Service` allow for a number of additional configuration settings that will be described here. Here is an example of configuration with all options specified:
+
+```json
+{
+  "authentication": {
+    "auth0": {
+      "domain": "example",
+      "keysService": "keys"
+    },
+    "authStrategies": ["auth0"],
+    "entity": "user",
+    "entityId": "user_id",
+    "jwtOptions": {},
+    "service": "users"
+  }
+}
+```
+
+First, currently `jwtOptions` is **NOT** configurable in `Auth0Strategy`. The `jwtOptions` are currently hardcoded into the strategy and resolve to:
+
+```js
+const jwtOptions = {
+  algorithms: ['RS256'],
+  audience: [
+    `https://${domain}.auth0.com/api/v2/`,
+    `https://${domain}.auth0.com/userinfo`
+  ],
+  ignoreExpiration: false,
+  issuer: `https://${domain}.auth0.com/`
+}
+```
+
+Where `domain` is the `authentication.auth0.domain` property in the config. `domain` is a **REQUIRED** option and an error will be thrown if it is not set. Likewise the JWKS URL (where the package will go to retrieve the signing key) is set to: `https://${domain}.auth0.com/.well-known/jwks.json`. If you use a custom domain with your Auth0 account, you'll have to fork this repo and update these values accordingly. (I may make these options configurable in a future release if this becomes a highly-requested feature.)
 
 ### The `keys` service
 
-In addition, this middleware will generate a `keys` service in your app. This is used to store JSON web keys (JWKs) retrieved from [Auth0's JWKS endpoint](https://auth0.com/docs/jwks). This service does not need to be persistent (the middleware creates an in-memory service) as it is mainly used to cache already-retrieved JWKs and improve performance. Also, although not strictly necessary, since the `keys` service does not contain any non-public information, this middleware sets up a hook to prevent the `keys` service from being called by external clients. For reference, please see [the JSON Schema version of the `keys` service](https://github.com/morphatic/feathers-auth0-authorize/blob/master/test/key-schema.json) contained in this repo.
+Under the hood, the `Auth0Strategy` generates an in-memory `keys` service in your app. This is used to store JSON web keys (JWKs) retrieved from [Auth0's JWKS endpoint](https://auth0.com/docs/jwks). This service does not need to be persistent as it is mainly used to cache already-retrieved JWKs and improve performance. Also, although not strictly necessary, since the `keys` service does not contain any non-public information, the `Auth0Strategy` sets up a hook to prevent the `keys` service from being called by external clients. For reference, please see [the JSON Schema version of the `keys` service](https://github.com/morphatic/feathers-auth0-authorize/blob/master/test/key-schema.json) contained in this repo.
 
-If you'd like to use a different service for storing the keys, this is configurable using the `options` described below.
+In the unlikely event that you already have another service called `keys` in your app, if you'd like to use a different service for storing the keys, replace "keys" in the above `authentication.auth0.keysService` setting for the name you'd like to use for this service.
 
-## Why not just store the signing certificate on the server
+### The `users` service
 
-Answer this later.
+`Auth0Strategy` gets the Auth0 `user_id` from the `sub` claim of the decoded JWT access token. By default, when looking up the associated user or entity in your FeathersJS API, it tries to retrieve a `user` from the `users` service using `app.service('users').find({ query: { user_id }})` and returning the first matching result (since the `user_id` should be unique, there should be only a single result).
 
-## Custom Configuration
+If you'd like to store your user information in a different service, and/or use a different field for `user_id`, this can be accomplished by updating the `authentication` config. For example, say you call your users "members" and store them in a service with a matching name, you could have a config like:
 
-Remember the "extra" parentheses we had to use when importing the hook into `app.hooks.js` above?
-
-```js
-// from src/app.hooks.js in our feathers app
-const { authorize } = require('@morphatic/feathers-auth0-authorize')() // <-- NOTE: the "extra" parentheses
-```
-
-They're necessary because the function that returns the hook uses [the factory pattern](https://medium.com/javascript-scene/javascript-factory-functions-with-es6-4d224591a8b1) and allows for customization. While you can swap out any of the functions in this plugin for your own implementation, the main things you're likely to want to customize are the services used to hold the `user_id` and `keys`.
-
-### Using a different `users` service
-
-By default, the hook queries the `users` service to find a `user` whose `user_id` matches the Auth0 `user_id` stored in the `sub` claim in the token. However, you might want to store this information on a different model in a different service. To do that, you'd provide an `options` object as a parameter to the `require()()` function and set the `userService` property to the name of the service you want to use. For example, pretend that instead of `users`, you want to look for the `user_id` property on the `members` service instead:
-
-```js
-// example src/app.hooks.js with custom `users` service
-// first, create an `options` object with the preferred name for your service
-const options = {
-  userService: 'members'
+```json
+{
+  "authentication": {
+    "auth0": {
+      "domain": "example",
+      "keysService": "keys"
+    },
+    "authStrategies": ["auth0"],
+    "entity": "member",
+    "entityId": "member_id",
+    "service": "members"
+  }
 }
-const { authorize } = require('@morphatic/feathers-auth0-authorize')(options) // <-- second, pass it to the import statement
 ```
 
-That's it!
+## FAQ
 
-### Using a different `keys` service
+I don't know if these are technically "frequently-asked", but they are questions...
 
-Similarly, you can use a different service name for where you store and look for the JWKs. Here's an example showing customization of BOTH the `users` and `keys` services:
+### Do you provide TypeScript typings
 
-```js
-// example src/app.hooks.js with custom `users` service
-// first, create an `options` object with the preferred names for your services
-const options = {
-  userService: 'members',
-  keysService: 'jwks'
+No, not yet. The package is currently written in plain JavaScript. I do plan at some point to update it to use TypeScript, but I can't say for sure when that will be. I know this is not a ton of work. I used to use TypeScript with some frequency, but it's been a while and frankly, the cognitive overhead of brushing up on TypeScript to get this out the door was more than I had bandwidth for at the time I wrote it. :sweat_smile:
+
+### Does `Auth0Strategy` work in conjunction with other strategies
+
+Is it possible for the `Auth0Strategy` to be one of several, e.g. setting `"authStrategies": ["auth0", "jwt", "local"]` in the `authentication` config? To be honest, I haven't tried it, so I don't know. I'd love to get reports from others as to whether it works or not. I _think_ it should work fine, though.
+
+### Why not just store the signing certificate on the server
+
+The signing certificate used with the `RS256` algorithm is a "public key" and as such, is not terribly sensitive. As an alternative to using this package, one could theoretically (i.e. I haven't actually tried this) download the signing key from Auth0 (it's in Auth0 Website > Dashboard > Applications > Your App > Advanced Settings > Certificates) and store it on the API (FeathersJS) server, and then use the built-in `JwtStrategy` with the following configuration (or something similar? like I said, I haven't tested this method):
+
+```json
+{
+  "authentication": {
+    "secret": "your signing key",
+    "authStrategies": ["jwt"],
+    "jwtOptions": {
+      "audience": [
+        "https://example.auth0.com/api/v2/",
+        "https://example.auth0.com/userinfo"
+      ],
+      "header": {
+        "typ": "JWT"
+      },
+      "issuer": "https://example.auth0.com/",
+      "algorithm": "RS256"
+    }
+  }
 }
-const { authorize } = require('@morphatic/feathers-auth0-authorize')(options) // <-- second, pass it to the import statement
 ```
+
+This is probably a perfectly satisfactory way to use `RS256` authentication with your FeathersJS app. However, there are a couple of potential "gotchas" to consider:
+
+1. As [discussed in this Auth0 blog post](https://auth0.com/blog/navigating-rs256-and-jwks/), one of the key goals of using an asymmetric signing algorithm like `RS256` is that you can avoid storing a secret key on multiple servers
+2. Signing keys can change over time. Although this is probably a rare event, a not-so-unlikely scenario involves an app maintainer deciding to rotate the signing key. This would, in effect, force all of the users of your app to be logged out, and require them to re-authenticate. In this scenario, the app maintainer would have to remember to download and replace the signing key on the API server whenever it was rotated. This additional step introduces additional points of potential failure, e.g. forgetting to update the server, the signing key is corrupted in transit, etc.
+3. The JWKS architecture allows there to be _multiple_ valid signing keys. The `JwtStrategy` only allows you to have a _single_ secret associated with your authentication strategy.
+
+The `Auth0Strategy` addresses and handles each of these points, and is designed to operate according to the standard.
+
+### Why does `Auth0Service` override the `setup()` function
+
+The [FeathersJS docs say explicitly](https://crow.docs.feathersjs.com/api/authentication/service.html#customization):
+
+> When extending `setup`, `super.setup(path, app)` should always be called, otherwise events and real-time connection authentication will no longer work.
+
+If you're the kind of person to dig into source code, you'd find that the `Auth0Service` overrides `setup()` but it does **NOT** call `super.setup(path, app)`. The problem is that the `setup()` function in the default `AuthenticationService` throws an error if the `authentication.secret` property is not set in the app config. Since one of the primary goals of extending the `AuthenticationService` was to avoid having to set `authentication.secret`, it was necessary to override the `setup()` function. However, care has been taken to apply the `connection()` and `events()` hooks that were in the original `setup()` function so that real-time connection authentication will _still_ work as expected.
 
 ## Comments, Questions, Issues, etc
 
