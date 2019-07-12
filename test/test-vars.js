@@ -40,6 +40,7 @@ const errorContext = {
 const externalContext = { app, type: 'before', params: { provider: 'external' } }
 const serverContext = { app, type: 'before', params: { provider: '' } }
 const fromAuth0Context = {
+  app,
   type: 'before',
   params: {
     provider: 'external',
@@ -49,7 +50,19 @@ const fromAuth0Context = {
     ip: '34.195.142.251'
   }
 }
+const fromEuropeanAuth0Context = {
+  app,
+  type: 'before',
+  params: {
+    provider: 'external',
+    headers: {
+      authorization: null
+    },
+    ip: '52.28.56.226'
+  }
+}
 const notFromAuth0Context = {
+  app,
   type: 'before',
   params: {
     provider: 'external',
@@ -199,6 +212,7 @@ module.exports = {
     externalContext,
     serverContext,
     fromAuth0Context,
+    fromEuropeanAuth0Context,
     notFromAuth0Context,
     noAuthenticationContext,
     noAuthorizationHeaderContext,

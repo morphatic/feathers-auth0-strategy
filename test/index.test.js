@@ -565,8 +565,36 @@ describe('The Auth0Service', () => {
 
   describe('fromAuth0() hook', () => {
     let fromAuth0Hook
+    let fromEuropeanAuth0Hook
+
     before(() => {
       fromAuth0Hook = fromAuth0()
+      fromEuropeanAuth0Hook = fromAuth0({
+        whitelist: [
+          '52.28.56.226',
+          '52.28.45.240',
+          '52.16.224.164',
+          '52.16.193.66',
+          '34.253.4.94',
+          '52.50.106.250',
+          '52.211.56.181',
+          '52.213.38.246',
+          '52.213.74.69',
+          '52.213.216.142',
+          '35.156.51.163',
+          '35.157.221.52',
+          '52.28.184.187',
+          '52.28.212.16',
+          '52.29.176.99',
+          '52.57.230.214',
+          '54.76.184.103',
+          '52.210.122.50',
+          '52.208.95.174',
+          '52.210.122.50',
+          '52.208.95.174',
+          '54.76.184.103'
+        ]
+      })
     })
     it('is a function', () => {
       assert(typeof fromAuth0Hook === 'function', 'fromAuth0() is not a function.')
@@ -577,9 +605,22 @@ describe('The Auth0Service', () => {
       assert(isWhitelisted, 'an IP address on the whitelist was rejected')
     })
     
+    it('returns true if the request context comes from a European whitelisted IP address', async () => {
+      const isWhitelisted = await fromEuropeanAuth0Hook(contexts.fromEuropeanAuth0Context)
+      assert(isWhitelisted, 'an IP address on the whitelist was rejected')
+    })
+    
     it('returns false if the request context comes from a non-whitelisted IP address', async () => {
       const isWhitelisted = await fromAuth0Hook(contexts.notFromAuth0Context)
       assert(!isWhitelisted, 'an IP address not on the whitelist was accepted')
+    })
+
+    it('can use whitelist overridden in config', async () => {
+      const customConfig = Object.assign({}, config)
+      customConfig.auth0.whitelist = ['66.66.66.66']
+      app.set('authentication', customConfig)
+      const isWhitelisted = await fromAuth0Hook(contexts.notFromAuth0Context)
+      assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
     })
   })
 
