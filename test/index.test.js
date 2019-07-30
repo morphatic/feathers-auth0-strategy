@@ -9,7 +9,7 @@ const {
   app,
   appUri,
   fakeJWKS,
-  signingKey,
+  signingCertificate,
   jwts,
   contexts
 } = require('./test-vars')
@@ -55,6 +55,7 @@ describe('The Auth0Strategy', () => {
 
   it('is configured properly', () => {
     const configuration = Object.assign({}, config, {
+      create: false,
       domain: 'example',
       header: 'Authorization',
       keysService: 'keys',
@@ -121,7 +122,7 @@ describe('The Auth0Strategy', () => {
       strategy.app.set('authentication', config)
     })
 
-    it('throws an error if no entity is found in the database', async () => {
+    it('throws an error if no entity is found in the database and `create === false`', async () => {
       try {
         await strategy.getEntity('some_user_id', {})
         assert.fail('Should never get here')
@@ -135,6 +136,23 @@ describe('The Auth0Strategy', () => {
       await app.service('users').create({ user_id: 'auth0|0123456789' })
       const user = await strategy.getEntity('auth0|0123456789', {})
       assert.deepEqual(user.user_id, 'auth0|0123456789', 'The user was not retrieved')
+    })
+
+    it('creates a new entity if not found and `create === true`', async () => {
+      app.set('authentication', {
+        auth0: {
+          domain: 'example',
+          keysService: 'keys'
+        },
+        authStrategies: ['auth0'],
+        createIfNotExists: true,
+        entity: 'user',
+        entityId: 'user_id',
+        service: 'users',
+        jwtOptions: {}
+      })
+      const user = await strategy.getEntity('auth0|iDoNotExist', {})
+      assert.strictEqual(user.user_id, 'auth0|iDoNotExist', 'The user was not created')
     })
   })
 
@@ -164,7 +182,7 @@ describe('The Auth0Strategy', () => {
 
     it('extracts a key in PEM format from a JWK', () => {
       const pem = strategy.x5cToPEM(fakeJWKS.keys[0])
-      assert.strictEqual(pem, signingKey, 'x5cToPEM() did not extract the expected key from the JWK')
+      assert.strictEqual(pem, signingCertificate, 'x5cToPEM() did not extract the expected key from the JWK')
     })
 
     it('throws an error if the JWK has no x5c elements', () => {
@@ -187,7 +205,7 @@ describe('The Auth0Strategy', () => {
 
     it('returns a signing key in PEM format', async () => {
       const key = await strategy.getKey('goodKid', strategy.getJWKS(appUri))
-      assert(key === signingKey, 'getKey() did not return the key expected')
+      assert(key === signingCertificate, 'getKey() did not return the key expected')
     })
 
     it('throws an error if key is not already in memory and the jwksClient gets a bad URI', async () => {
@@ -197,7 +215,7 @@ describe('The Auth0Strategy', () => {
       } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should throw a NotAuthenticated')
         assert.strictEqual(err.data, 'The URI for the JWKS was incorrect', 'should let us know the JWKS URI was wrong')
-        assert.strictEqual(err.message, 'Could not retrieve JWKS', 'message should be\'Could not retrieve JWKS\'')
+        assert.strictEqual(err.message, 'Could not retrieve JWKS', 'message should be \'Could not retrieve JWKS\'')
       }
     })
 
@@ -214,7 +232,7 @@ describe('The Auth0Strategy', () => {
     it('will return a stored key if found in the database', async () => {
       await app.service('keys').create(fakeJWKS.keys[0])
       const key = await strategy.getKey('goodKid', strategy.getJWKS(appUri))
-      assert(key === signingKey, 'getKey() did not return the key expected')
+      assert(key === signingCertificate, 'getKey() did not return the key expected')
     })
   })
 
