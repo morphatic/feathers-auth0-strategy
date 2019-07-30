@@ -5,6 +5,8 @@
 [![npm version](https://badge.fury.io/js/%40morphatic%2Ffeathers-auth0-strategy.svg)](https://www.npmjs.com/package/@morphatic/feathers-auth0-strategy)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/morphatic/feathers-auth0-strategy/master/LICENSE)
 
+:warning: **This package is designed to work with the [FeatherJS v4.0 (Crow)](https://crow.docs.feathersjs.com/) which is currently (2019-07-15) in pre-release.** :warning:
+
 ## What this package does
 
 This package does two things:
