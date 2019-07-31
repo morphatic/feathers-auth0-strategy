@@ -1,5 +1,8 @@
 # Change Log
 
+## [v0.4.0](https://github.com/morphatic/feathers-auth0-strategy/tree/v0.4.0) (2019-07-31)
+[Full Changelog](https://github.com/morphatic/feathers-auth0-strategy/compare/v0.3.0...v0.4.0)
+
 ## [v0.3.0](https://github.com/morphatic/feathers-auth0-strategy/tree/v0.3.0) (2019-07-31)
 [Full Changelog](https://github.com/morphatic/feathers-auth0-strategy/compare/v0.2.0...v0.3.0)
 
