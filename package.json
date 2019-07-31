@@ -1,6 +1,6 @@
 {
   "name": "@morphatic/feathers-auth0-strategy",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
   "description": "An RS256 authentication strategy for FeathersJS to support authentication with access tokens generated client-side with Auth0",
   "main": "lib/",
