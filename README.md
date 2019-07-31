@@ -5,7 +5,7 @@
 [![npm version](https://badge.fury.io/js/%40morphatic%2Ffeathers-auth0-strategy.svg)](https://www.npmjs.com/package/@morphatic/feathers-auth0-strategy)
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/morphatic/feathers-auth0-strategy/master/LICENSE)
 
-:warning: **This package is designed to work with the [FeatherJS v4.0 (Crow)](https://crow.docs.feathersjs.com/) which is currently (2019-07-15) in pre-release.** :warning:
+:warning: **This package is designed to work with the [FeatherJS v4.0 (Crow)](https://crow.docs.feathersjs.com/), currently (2019-07-30) in pre-release.** :warning:
 
 ## What this package does
 
@@ -13,7 +13,7 @@ This package does two things:
 
 1. It implements a [custom `auth0` authentication strategy for FeathersJS](https://crow.docs.feathersjs.com/api/authentication/strategy.html). The `Auth0Strategy` verifies JWTs ([JSON Web Tokens](https://jwt.io/)) using the asymmetric `RS256` algorithm ([the recommended practice](https://auth0.com/blog/navigating-rs256-and-jwks/)), rather than the `HS256` algorithm that is built into the FeathersJS [`JwtStrategy`](https://crow.docs.feathersjs.com/api/authentication/jwt.html#jwtstrategy).
 2. It implements a [custom FeathersJS authentication service](https://crow.docs.feathersjs.com/api/authentication/service.html#customization). The `Auth0Service` extends, and is designed to be used in place of the default [`AuthenticationService`](https://crow.docs.feathersjs.com/api/authentication/service.html). The primary benefits of the `Auth0Service` are that it:
-   1. Removes the necessity for developers to specify the `authentication.secret` configuration property in their apps. The client secret is irrelevant to `RS256` token verification scenarios. The default `AuthenticationService` will throw an error if the `secret` is not specified.
+   1. Removes the necessity for developers to specify the `authentication.secret` configuration property in their apps. The client secret is not used by `RS256` token verification scenarios, but the default `AuthenticationService` will throw an error if the `secret` is not specified.
    2. Automatically configures the hooks necessary to force all clients to be authenticated when accessing API services. By default, all services will require authentication **_except_** the `/authentication` service itself.
    3. Implements an IP address whitelist that will allow requests coming directly from Auth0 to access the API without authentication. The IP whitelist can be configured by implementers.
 
@@ -59,6 +59,7 @@ In your server config file (usually `config/default.json`), at a minimum, you'll
     "authStrategies": [
       "auth0"
     ],
+    "createIfNotExists": false,
     "entity": "users",
     "entityId": "user_id",
     "service": "users"
@@ -74,20 +75,103 @@ It's likely that you already have a `users` service in your app. If you don't, y
 
 If you'd like to use a different service for storing user information or the `user_id` key, this is configurable using the `options` described below.
 
-### :warning: This package does NOT add users to your database nor check permissions
+### Decide how to handle non-existent users
+
+By default, this package will **NOT** add users to your API database. This is primarily an issue that affects authentication when users first create an account with your app. Since the signup and authentication process is handled by Auth0, you have to have some way to get the Auth0 `user_id` stored in a new `user` record in your API's database.
+
+#### Option #1: Direct Auth0 <==> API `user` creation
+
+One way to get your Auth0 users into your API is to have Auth0 make an API request directly. From the [Auth0 management dashboard](https://manage.auth0.com/dashboard), you can go to the "Rules" menu and create a new rule that will attempt to make an API request whenever someone logs in. I have something like this:
+
+```js
+/**
+ * A RULE created from the Auth0 Dashboard
+ * Add user to the API users table
+ */
+function (user, context, callback) {
+  // check to see if they've already been added
+  if (user.app_metadata && !user.app_metadata.api_id) {
+    // no, they haven't, so...
+    // load the library we'll need to make an API request
+    const axios = require('axios');
+
+    // construct our URL and POST body
+    // NOTE: You MUST send an additional `api_url` param with the
+    // authentication request so Auth0 knows how to find your API!!!
+    const url = `${context.request.query.api_url}/users`;
+    const body = { ...user };
+    delete body._id;
+
+    // try to create/update a new user via the API
+    // NOTE: I'm using an "upsert" query here. Setting this up
+    // requires additional configuration on the API server side
+    axios.patch(url, body, {
+      headers: { 'content-type': 'application/json' },
+      params: { user_id: user.user_id }
+    }).then(
+      api_user => {
+        // it worked! set the API _id for the created user in app_metadata
+        if (Array.isArray(api_user.data) && api_user.data[0] && api_user.data[0]._id) {
+          user.app_metadata.api_id = api_user.data[0]._id;
+        } else if (Array.isArray(api_user.data.upserted) && api_user.data.upserted[0]._id) {
+          user.app_metadata.api_id = api_user.data.upserted[0]._id;
+        } else {
+          user.app_metadata.api_id = '';
+        }
+        return auth0.users.updateAppMetadata(user.user_id, user.app_metadata);
+      })
+      .then(() => {
+        callback(null, user, context);
+      })
+      .catch((err) => {
+        console.log('error',err);
+        // it didn't work.
+        callback(null, user, context);
+      });
+  } else {
+    // yes, they've already been added to the API
+    // carry on...
+    callback(null, user, context);
+  }
+}
+```
+
+As will be explained below, [this package sets up an IP address whitelist to allow requests from Auth0 to be accepted by your API](#the-fromauth0-ip-address-whitelist) without the normal authentication. (You'll still need some mechanism to make sure that the requests actually came from Auth0 and not another agent spoofing an Auth0 IP address.)
+
+#### Option #2: Allow `Auth0Strategy` to create new `users`
+
+A second method for creating users in your API database is to configure `Auth0Strategy` to allow a new `user` to be created if one doesn't already exist with the given Auth0 `user_id`. To do this, the default configuration needs to be updated to:
+
+```json
+{
+  "authentication": {
+    "auth0": {
+      "domain": "example"
+    },
+    "authStrategies": [
+      "auth0"
+    ],
+    "createIfNotExists": true, // <-- SET THIS TO `TRUE`
+    "entity": "users",
+    "entityId": "user_id",
+    "service": "users"
+  }
+}
+```
+
+In this case, the very first time a new user attempts to authenticate, a new `user` record will be created that contains ONLY the Auth0 `user_id`. This happens AFTER the `access_token` has been verified to be valid.
+
+This is easier to set up than the previous option, but it also means you'll have to figure out another way to transfer the user's profile from Auth0 to the API.
+
+### :warning: This package does NOT check permissions
 
 This package is designed to verify that access tokens sent from your client are:
 
 1. Valid
 2. Current (i.e. not expired)
-3. Associated with an **existing** user account
+3. Associated with an **existing** user account (although it is possible to create a **minimal** user record automatically)
 
-That said, this package does **NOT** handle:
-
-1. Adding users to your database to begin with, nor
-2. Checking to see if the users making API requests actually have permission to access the requested resources
-
-You'll need to address these issues in some other way. For example, I have a custom rule set up on my Auth0 apps that makes a direct call from Auth0 to the API to add users, if necessary. (That's why there is a `fromAuth0()` hook included in this package, to handle authenticating such requests.) Since Auth0 allows you to store user-related information in `user_metadata`, and since app developers will make different decisions about where to store user info (API vs Auth0), how much (if any) info to duplicate across these stores, I chose not to address this in this package. Likewise, permissions scenarios are also likely to vary widely across apps, and are hence unaddressed here.
+That said, this package does **NOT** check to see if the users making API requests actually have permission to access the requested resources. You'll need to address permissions in some other way. Also, since Auth0 allows you to store user-related information in `user_metadata`, and since app developers will make different decisions about where to store user info (API vs Auth0), how much (if any) info to duplicate across these stores, I chose not to address this in this package. Likewise, permissions scenarios are also likely to vary widely across apps, and are hence unaddressed here.
 
 ## Basic usage
 
@@ -126,6 +210,7 @@ Using the FeathersJS default `AuthenticationService` gives you more control, but
     "authStrategies": [
       "auth0"
     ],
+    "createIfNotExists": false,
     "entity": "users",
     "entityId": "user_id",
     "secret": "i_am_not_used_but_must_be_set",
@@ -140,7 +225,7 @@ And then in your app setup (usually `src/app.js`):
 // src/app.js
 
 // import the service, strategy, and hooks
-const { AthenticationService, authenticate } = require('@feathersjs/authentication')
+const { AuthenticationService, authenticate } = require('@feathersjs/authentication')
 const { Auth0Strategy, fromAuth0 } = require('@morphatic/feathers-auth0-strategy')
 const { isProvider, some, unless } = require('feathers-hooks-common')
 
@@ -183,21 +268,22 @@ From your frontend app, you'll need to configure the standard [`@feathersjs/auth
 
 ```js
 // NOTE: this is almost exactly the same as standard client setup described in the official docs
-const feathers = require('@feathersjs/feathers');
-const socketio = require('@feathersjs/socketio-client');
-const io = require('socket.io-client');
-const auth = require('@feathersjs/authentication-client');
+const feathers = require('@feathersjs/feathers')
+const socketio = require('@feathersjs/socketio-client')
+const io = require('socket.io-client')
+const auth = require('@feathersjs/authentication-client')
+const localforage = require('localforage)
 
-const socket = io('http://api.feathersjs.com');
-const api = feathers();
+const socket = io('http://api.feathersjs.com')
+const api = feathers()
 
 // Setup the transport (Rest, Socket, etc.) here
-api.configure(socketio(socket));
+api.configure(socketio(socket))
 
 // Make sure the authentication client is configured to use the `auth0` strategy
 api.configure(auth({
   jwtStrategy: 'auth0', // <-- IMPORTANT!!!
-  storage: LocalForage,
+  storage: localforage,
   storageKey: 'auth0_token'
 }))
 ```
@@ -262,6 +348,7 @@ app.service('todos').find({})
       "whitelist": []
     },
     "authStrategies": ["auth0"],
+    "createIfNotExists": false,
     "entity": "user",
     "entityId": "user_id",
     "jwtOptions": {},
@@ -270,7 +357,7 @@ app.service('todos').find({})
 }
 ```
 
-First, currently `jwtOptions` is **NOT** configurable in `Auth0Strategy`. The `jwtOptions` are currently hardcoded into the strategy and resolve to:
+First, currently `jwtOptions` is **NOT** configurable in `Auth0Strategy`. The `jwtOptions` are currently hard-coded into the strategy and resolve to:
 
 ```js
 const jwtOptions = {
