@@ -790,4 +790,14 @@ describe('The addIP middleware', () => {
       done()
     })
   })
+
+  it('should get the IP address from the x-forwarded-for header', done => {
+    // get the addIP function from the registered middleware
+    const addIP = app._router.stack.find(mw => mw.name === 'addIP').handle
+    const req = { feathers: {}, headers: { 'x-forwarded-for': '111.111.111.111'} }
+    addIP(req, null, () => {
+      assert(req.feathers.ip === '111.111.111.111', 'the IP address was not set correctly')
+      done()
+    })
+  })
 })
