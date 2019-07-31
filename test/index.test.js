@@ -762,3 +762,32 @@ describe('The Auth0Service', () => {
     })
   })
 })
+
+describe('The addIP middleware', () => {
+  it('should be registered', () => {
+    assert(
+      app._router && app._router.stack && app._router.stack.some(mw => mw.name === 'addIP'), 
+      'the addIP middleware was not registered'
+    )
+  })
+
+  it('should add the IP address to the req.feathers object', done => {
+    // get the addIP function from the registered middleware
+    const addIP = app._router.stack.find(mw => mw.name === 'addIP').handle
+    const req = { feathers: {}, ip: '111.111.111.111', headers: {} }
+    addIP(req, null, () => {
+      assert(req.feathers.ip === '111.111.111.111', 'the IP address was not set correctly')
+      done()
+    })
+  })
+
+  it('should get the IP address from the x-real-ip header', done => {
+    // get the addIP function from the registered middleware
+    const addIP = app._router.stack.find(mw => mw.name === 'addIP').handle
+    const req = { feathers: {}, headers: { 'x-real-ip': '111.111.111.111'} }
+    addIP(req, null, () => {
+      assert(req.feathers.ip === '111.111.111.111', 'the IP address was not set correctly')
+      done()
+    })
+  })
+})

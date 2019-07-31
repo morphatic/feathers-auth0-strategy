@@ -185,7 +185,11 @@ If you choose to use **BOTH** `Auth0Strategy` and `Auth0Service`, in your main s
 // src/app.js
 
 // import the service and strategy classes
-const { Auth0Service, Auth0Strategy } = require('@morphatic/feathers-auth0-strategy')
+const { addIP, Auth0Service, Auth0Strategy } = require('@morphatic/feathers-auth0-strategy')
+
+// configure middleware for adding the IP address to the context for incoming requests
+// this MUST be added to your `app.js` file BEFORE any services have been registered
+app.configure(addIP)
 
 // instantiate the service
 const auth0Service = new Auth0Service(app)
