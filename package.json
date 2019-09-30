@@ -48,7 +48,7 @@
   "dependencies": {
     "@feathersjs/authentication": "^4.3.0-pre.1",
     "feathers-hooks-common": "^4.20.7",
-    "feathers-memory": "^3.0.2",
+    "feathers-memory": "^4.0.1",
     "request": "^2.88.0",
     "request-promise": "^4.2.4"
   },
