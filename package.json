@@ -40,7 +40,7 @@
     "@feathersjs/express": "^4.3.0-pre.1",
     "@feathersjs/feathers": "^4.3.0-pre.1",
     "eslint": "^5.16.0",
-    "feathers-nedb": "^4.0.2",
+    "feathers-nedb": "^5.0.2",
     "mocha": "^6.1.4",
     "nedb": "^1.8.0",
     "nyc": "^14.1.1"
