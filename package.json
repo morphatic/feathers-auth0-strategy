@@ -1,6 +1,6 @@
 {
   "name": "@morphatic/feathers-auth0-strategy",
-  "version": "0.0.1",
+  "version": "0.0.0-development",
   "private": false,
   "description": "An RS256 authentication strategy for FeathersJS to support access tokens generated client-side with Auth0",
   "main": "lib/",
@@ -17,11 +17,12 @@
     "release:minor": "npm version minor && npm publish",
     "release:patch": "npm version patch && npm publish",
     "release:prerelease": "npm version prerelease && npm publish --tag pre",
-    "test": "npm run eslint && nyc npm run mocha"
+    "test": "npm run eslint && nyc npm run mocha",
+    "semantic-release": "semantic-release"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/morphatic/feathers-auth0-strategy.git"
+    "url": "https://github.com/morphatic/feathers-auth0-strategy.git"
   },
   "keywords": [
     "auth0",
@@ -37,20 +38,21 @@
   },
   "homepage": "https://github.com/morphatic/feathers-auth0-strategy#readme",
   "devDependencies": {
-    "@feathersjs/express": "^4.3.0-pre.1",
-    "@feathersjs/feathers": "^4.3.0-pre.1",
-    "eslint": "^5.16.0",
-    "feathers-nedb": "^4.0.2",
-    "mocha": "^6.1.4",
+    "@feathersjs/express": "^4.3.3",
+    "@feathersjs/feathers": "^4.3.3",
+    "cz-conventional-changelog": "3.0.2",
+    "eslint": "^6.5.1",
+    "feathers-nedb": "^5.0.2",
+    "mocha": "^6.2.1",
     "nedb": "^1.8.0",
-    "nyc": "^14.1.1"
+    "nyc": "^14.1.1",
+    "semantic-release": "^15.13.24"
   },
   "dependencies": {
-    "@feathersjs/authentication": "^4.3.0-pre.1",
+    "@feathersjs/authentication": "^4.3.3",
     "feathers-hooks-common": "^4.20.7",
-    "feathers-memory": "^3.0.2",
-    "request": "^2.88.0",
-    "request-promise": "^4.2.4"
+    "feathers-memory": "^4.0.1",
+    "whatwg-fetch": "^3.0.0"
   },
   "engines": {
     "node": ">= 8"
@@ -60,5 +62,10 @@
       "text",
       "html"
     ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
   }
 }
