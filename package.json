@@ -18,6 +18,7 @@
     "release:patch": "npm version patch && npm publish",
     "release:prerelease": "npm version prerelease && npm publish --tag pre",
     "test": "npm run eslint && nyc npm run mocha",
+    "test:watch": "npm run eslint && mocha --recursive --timeout 10000 --watch",
     "semantic-release": "semantic-release"
   },
   "repository": {
@@ -38,6 +39,7 @@
   },
   "homepage": "https://github.com/morphatic/feathers-auth0-strategy#readme",
   "devDependencies": {
+    "@feathersjs/configuration": "^4.3.3",
     "@feathersjs/express": "^4.3.3",
     "@feathersjs/feathers": "^4.3.3",
     "cz-conventional-changelog": "3.0.2",
