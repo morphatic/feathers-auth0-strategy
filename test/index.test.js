@@ -4,10 +4,9 @@ const Auth0Strategy = require('../lib/strategy')
 const Auth0Service = require('../lib/service')
 const { authenticate, hooks } = require('@feathersjs/authentication')
 const fromAuth0 = require('../lib/hooks/from-auth0')
-const { connection, events } = hooks
+const { connection, event } = hooks
 const {
   app,
-  appUri,
   fakeJWKS,
   signingCertificate,
   jwts,
@@ -17,90 +16,72 @@ const {
 // extend Auth0Strategy so we can override getJWKS with a mock
 class MockAuth0Strategy extends Auth0Strategy {
   getJWKS (uri) {
-    return () => {
-      if (uri === appUri) return Promise.resolve(fakeJWKS)
-      if (uri === 'noMatchingKeysURI') {
-        const copyOfFakeJWKS = JSON.parse(JSON.stringify(fakeJWKS))
-        copyOfFakeJWKS.keys[0].kid = 'nonMatchingKid'
-        return Promise.resolve(copyOfFakeJWKS)
-      }
-      throw 'The URI for the JWKS was incorrect'
+    if (uri === 'https://bad.auth0.com/.well-known/jwks.json') {
+      const copyOfFakeJWKS = JSON.parse(JSON.stringify(fakeJWKS))
+      copyOfFakeJWKS.keys[0].kid = 'nonMatchingKid'
+      return Promise.resolve(copyOfFakeJWKS)
     }
+    if (uri === this.configuration.jwksUri) return Promise.resolve(fakeJWKS)
+    throw 'The URI for the JWKS was incorrect'
   }
 }
 
-const config = {
-  auth0: {
-    domain: 'example',
-    keysService: 'keys'
-  },
-  authStrategies: ['auth0'],
+const clone = obj => JSON.parse(JSON.stringify(obj))
+
+/**
+ * This is what the configuration should be set to if only the
+ * domain is set in the default.json config file
+ */
+const defaultConfig = {
+  create: false,
   entity: 'user',
   entityId: 'user_id',
-  service: 'users',
-  jwtOptions: {}
+  header: 'Authorization',
+  jwksUri: 'https://example.auth0.com/.well-known/jwks.json',
+  jwtOptions: {
+    algorithms: ['RS256'],
+    audiences: [
+      'https://example.auth0.com/api/v2',
+      'https://example.auth0.com/userinfo'
+    ],
+    ignoreExpiration: false,
+    issuer: 'https://example.auth0.com/'
+  },
+  schemes: ['Bearer', 'JWT'],
+  service: 'users'
 }
+
+/**
+ * The config value of the "authentication" key in default.json
+ */
+const config = { auth0: { domain: 'example.auth0.com' }, authStrategies: ['auth0'] }
 
 describe('The Auth0Strategy', () => {
   let strategy
 
   before(() => {
-    app.set('authentication', config)
-    strategy = new MockAuth0Strategy()
-    strategy.setName('auth0')
     const service = new Auth0Service(app)
-    strategy.setApplication(app)
-    strategy.setAuthentication(service)
+    strategy = new MockAuth0Strategy()
+    service.register('auth0', strategy)
+    app.use('/authentication', service)
   })
 
   it('is configured properly', () => {
-    const configuration = Object.assign({}, config, {
-      create: false,
-      domain: 'example',
-      header: 'Authorization',
-      keysService: 'keys',
-      schemes: [ 'Bearer', 'JWT' ]
-    })
-    delete configuration.auth0
-    delete configuration.authStrategies
-    delete configuration.jwtOptions
-    assert.deepEqual(strategy.configuration, configuration, 'The strategy produces the wrong configuration')
+    assert.deepEqual(strategy.configuration, defaultConfig, 'The strategy produces the wrong configuration')
 
     try {
       // unset the domain
-      const noDomainConfig = Object.assign({}, config, { auth0: { domain: null } })
+      const noDomainConfig = clone(strategy.app.get('authentication'))
+      delete noDomainConfig.auth0.domain
       strategy.app.set('authentication', noDomainConfig)
       strategy.verifyConfiguration()
       assert.fail('Should never get here')
     } catch (err) {
       assert.strictEqual(err.name, 'GeneralError', 'should throw a GeneralError')
-      assert.strictEqual(err.message, 'The \'authentication.auth0.domain\' option must be set.', 'Did not have the correct error message')
-    }
-    try {
-      // create a config with a random key/value pair
-      const randomConfig = Object.assign({}, config, {
-        auth0: {
-          domain: 'example',
-          someRandomKey: 'someRandomValue'
-        }
-      })
-      strategy.app.set('authentication', randomConfig)
-      strategy.verifyConfiguration()
-      assert.fail('Should never get here')
-    } catch (err) {
-      assert.strictEqual(err.name, 'GeneralError', 'should throw a GeneralError')
-      assert.strictEqual(
-        err.message,
-        'Invalid Auth0Strategy option \'authentication.auth0.someRandomKey\'',
-        'Did not have the correct error message'
-      )
+      assert.strictEqual(err.message, 'You must set `authentication.auth0.domain` in your app configuration.', 'Did not have the correct error message')
     }
     // restore the valid app config
-    strategy.app.set('authentication', config)
-  })
-
-  it('has a keys service', () => {
-    assert(!!strategy.keysService, 'The keysService is undefined')
+    strategy.app.set('authentication', { auth0: { domain: 'example.auth0.com' } })
   })
 
   describe('getEntity() method', () => {
@@ -108,9 +89,8 @@ describe('The Auth0Strategy', () => {
       assert(typeof strategy.getEntity === 'function', 'getEntity() is not a function')
     })
 
-    it('throws an error if no entity service is specified', async () => {
-      const configuration = Object.assign({}, config)
-      delete configuration.service
+    it('throws an error if the entity service cannot be found', async () => {
+      const configuration = Object.assign({}, config, { auth0: { service: 'people' } })
       strategy.app.set('authentication', configuration)
       try {
         await strategy.getEntity('some_user_id', {})
@@ -141,17 +121,18 @@ describe('The Auth0Strategy', () => {
     it('creates a new entity if not found and `create === true`', async () => {
       app.set('authentication', {
         auth0: {
-          domain: 'example',
-          keysService: 'keys'
-        },
-        authStrategies: ['auth0'],
-        createIfNotExists: true,
-        entity: 'user',
-        entityId: 'user_id',
-        service: 'users',
-        jwtOptions: {}
+          create: true,
+          domain: 'example.auth0.com'
+        }
       })
       const user = await strategy.getEntity('auth0|iDoNotExist', {})
+      // reset the configuration after we've made our request
+      app.set('authentication', {
+        auth0: {
+          create: false,
+          domain: 'example.auth0.com'
+        }
+      })
       assert.strictEqual(user.user_id, 'auth0|iDoNotExist', 'The user was not created')
     })
   })
@@ -161,16 +142,15 @@ describe('The Auth0Strategy', () => {
       assert(typeof strategy.getJWKS === 'function', 'getJWKS() is not a function')
     })
 
-    it('returns a function when passed a uri (string)', () => {
+    it('returns a Promise when passed a uri (string)', () => {
       assert(
-        typeof strategy.getJWKS(appUri) === 'function',
-        'Calling getJWKS() with a valid URI parameter did not return a function'
+        strategy.getJWKS(strategy.configuration.jwksUri) instanceof Promise,
+        'Calling getJWKS() with a valid URI parameter did not return a promise'
       )
     })
 
     it('returns a JWKS asynchronously', async () => {
-      const client = strategy.getJWKS(appUri)
-      const jwks = await client()
+      const jwks = await strategy.getJWKS(strategy.configuration.jwksUri)
       assert.deepEqual(jwks, fakeJWKS, 'getJWKS() client did not return the expected JWKS')
     })
   })
@@ -193,46 +173,54 @@ describe('The Auth0Strategy', () => {
         assert.fail('Should never get here')
       } catch (err) {
         assert.strictEqual(err.name, 'GeneralError', 'should throw a GeneralError')
-        assert.strictEqual(err.message, 'Stored JWK has no x5c property.', 'message should be \'Stored JWK has no x5c property.\'')
+        assert.strictEqual(err.message, 'JWK has no x5c property.', 'message should be \'JWK has no x5c property.\'')
       }
     })
   })
 
-  describe('getKey() method', () => {
+  describe('getJWK() method', () => {
+    before(() => {
+      strategy.app.set(strategy.authentication.configKey, config)
+      strategy.jwks = new Map()
+    })
+
     it('is a function', () => {
-      assert(typeof strategy.getKey === 'function', 'getKey() is not a function.')
-    })
-
-    it('returns a signing key in PEM format', async () => {
-      const key = await strategy.getKey('goodKid', strategy.getJWKS(appUri))
-      assert(key === signingCertificate, 'getKey() did not return the key expected')
-    })
-
-    it('throws an error if key is not already in memory and the jwksClient gets a bad URI', async () => {
-      try {
-        await strategy.getKey('badKid', strategy.getJWKS('badURI'))
-        assert.fail('Should never get here')
-      } catch (err) {
-        assert.strictEqual(err.name, 'NotAuthenticated', 'should throw a NotAuthenticated')
-        assert.strictEqual(err.data, 'The URI for the JWKS was incorrect', 'should let us know the JWKS URI was wrong')
-        assert.strictEqual(err.message, 'Could not retrieve JWKS', 'message should be \'Could not retrieve JWKS\'')
-      }
+      assert(typeof strategy.getJWK === 'function', 'getJWK() is not a function.')
     })
 
     it('throws an error if key is not already in memory and the retrieved JWKS does not contain `kid`', async () => {
       try {
-        await strategy.getKey('badKid', strategy.getJWKS('noMatchingKeysURI'))
+        strategy.app.set(strategy.authentication.configKey, { auth0: { domain: 'bad.auth0.com' }, authStrategies: ['auth0'] })
+        await strategy.getJWK(jwts.currentMemberJWT)
         assert.fail('Should never get here')
       } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should throw a NotAuthenticated')
-        assert.strictEqual(err.message, 'Could not find a JWK matching given kid', 'message should be \'Could not find a JWK matching given kid\'')
+        assert.strictEqual(err.message, 'Could not retrieve JWKS', 'message should be \'Could not retrieve JWKS\'')
+        // reset the jwksUri
+        strategy.app.set(strategy.authentication.configKey, config)
+      }
+    })
+
+    it('sets the JWK (secret) if passed a well-formed access token', async () => {
+      const jwk = await strategy.getJWK(jwts.currentMemberJWT)
+      assert.strictEqual(jwk, signingCertificate, 'getJWK() did not set the expected PEM')
+    })
+
+    it('throws an error if the passed token is not well-formed', async () => {
+      try {
+        await strategy.getJWK('iamnotwellformed')
+        assert.fail('Should never get here')
+      } catch (err) {
+        assert.strictEqual(err.name, 'NotAuthenticated', 'should throw a NotAuthenticated')
+        assert.strictEqual(err.message, 'The access token was malformed or missing', 'message should be \'The access token was malformed or missing\'')
       }
     })
 
     it('will return a stored key if found in the database', async () => {
-      await app.service('keys').create(fakeJWKS.keys[0])
-      const key = await strategy.getKey('goodKid', strategy.getJWKS(appUri))
-      assert(key === signingCertificate, 'getKey() did not return the key expected')
+      strategy.jwks.set('goodKid', signingCertificate)
+      await strategy.getJWK(jwts.currentMemberJWT)
+      const key = strategy.jwks.get('goodKid')
+      assert.equal(key, signingCertificate, 'getJWK() did not return the key expected')
     })
   })
 
@@ -246,7 +234,8 @@ describe('The Auth0Strategy', () => {
         await strategy.authenticate({ accessToken: null }, {})
       } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should throw a NotAuthenticated')
-        assert.strictEqual(err.message, 'No access token was received', 'message should be \'No access token was received\'')
+        assert.strictEqual(err.message, 'Token could not be verified', 'message should be \'Token could not be verified\'')
+        assert.strictEqual(err.data.message, 'The access token was malformed or missing', 'message should be \'The access token was malformed or missing\'')
       }
     })
 
@@ -255,17 +244,20 @@ describe('The Auth0Strategy', () => {
         await strategy.authenticate({ accessToken: 'a_bad_token' }, {})
       } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should throw a NotAuthenticated')
-        assert.strictEqual(err.message, 'The access token was malformed', 'message should be \'The access token was malformed\'')
+        assert.strictEqual(err.message, 'Token could not be verified', 'message should be \'Token could not be verified\'')
+        assert.strictEqual(err.data.message, 'The access token was malformed or missing', 'message should be \'The access token was malformed or missing\'')
       }
     })
 
     it('throws an error if the accessToken cannot be verified', async () => {
       try {
-        await strategy.keysService.create(fakeJWKS.keys[0])
-        await strategy.entityService.create({
-          user_id: 'auth0|currentValidTokenMember'
-        })
+        // make sure a valid key is stored in the keys service
+        strategy.jwks.set('goodKid', strategy.x5cToPEM(fakeJWKS.keys[0]))
+        // add a valid user to the database
+        await strategy.entityService.create({ user_id: 'auth0|currentValidTokenMember' })
+        // try to authenticate with a JWT that was created with an invalid issuer URL
         await strategy.authenticate({ accessToken: jwts.invalidIssuerJWT }, {})
+        assert.fail('Should never get here')
       } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should throw a NotAuthenticated')
         assert.strictEqual(err.message, 'Token could not be verified', 'message should be \'Token could not be verified\'')
@@ -294,18 +286,27 @@ describe('The Auth0Strategy', () => {
       }, 'The expected authenticate() result was not returned')
     })
   })
+
+  describe('handleConnection() method', () => {
+    it('is a function', () => {
+      console.log(strategy.connection)
+      assert(typeof strategy.handleConnection === 'function', 'authenticate() is not a function.')
+    })
+
+  })
 })
 
 describe('The Auth0Service', () => {
   let service
 
   before(() => {
-    app.set('authentication', config)
     service = new Auth0Service(app)
     service.register('auth0', new MockAuth0Strategy())
     app.use('/authentication', service)
-    // initialize the service
-    app.setup()
+  })
+
+  after(() => {
+
   })
 
   describe('setup() method', () => {
@@ -335,8 +336,8 @@ describe('The Auth0Service', () => {
         assert.strictEqual(err.name, 'GeneralError', 'should throw a GeneralError')
         assert.strictEqual(
           err.message,
-          'The \'authentication.auth0.domain\' option must be set.',
-          'message should be \'The \'authentication.auth0.domain\' option must be set.\''
+          'You must set `authentication.auth0.domain` in your app configuration.',
+          'message should be \'You must set `authentication.auth0.domain` in your app configuration.\''
         )
       }
     })
@@ -346,7 +347,7 @@ describe('The Auth0Service', () => {
         const appWithUndefinedService = feathers()
         const undefinedService = new Auth0Service(appWithUndefinedService, 'authentication', {
           auth0: {
-            domain: 'example',
+            domain: 'example.auth0.com',
             keysService: 'keys'
           },
           authStrategies: ['auth0'],
@@ -360,11 +361,11 @@ describe('The Auth0Service', () => {
         appWithUndefinedService.setup()
         assert.fail('Should never get here')
       } catch (err) {
-        assert.strictEqual(err.name, 'GeneralError', 'should throw a GeneralError')
+        assert.strictEqual(err.name, 'Error', 'should throw an Error')
         assert.strictEqual(
           err.message,
-          'Since the \'entity\' option is set to \'user\', the \'service\' option must also be set',
-          'message should be \'Since the \'entity\' option is set to \'user\', the \'service\' option must also be set\''
+          'The \'service\' option is not set in the authentication configuration',
+          'message should be \'The \'service\' option is not set in the authentication configuration\''
         )
       }
     })
@@ -388,11 +389,11 @@ describe('The Auth0Service', () => {
         appWithNoUsersService.setup()
         assert.fail('Should never get here')
       } catch (err) {
-        assert.strictEqual(err.name, 'GeneralError', 'should throw a GeneralError')
+        assert.strictEqual(err.name, 'Error', 'should throw a Error')
         assert.strictEqual(
           err.message,
-          'The \'users\' entity service does not exist. Set to \'null\' if it is not required.',
-          'message should be \'The \'users\' entity service does not exist. Set to \'null\' if it is not required.\''
+          'The \'users\' entity service does not exist (set to \'null\' if it is not required)',
+          'message should be \'The \'users\' entity service does not exist (set to \'null\' if it is not required)\''
         )
       }
     })
@@ -419,11 +420,11 @@ describe('The Auth0Service', () => {
         appWithNoUserID.setup()
         assert.fail('Should never get here')
       } catch (err) {
-        assert.strictEqual(err.name, 'GeneralError', 'should throw a GeneralError')
+        assert.strictEqual(err.name, 'Error', 'should throw a Error')
         assert.strictEqual(
           err.message,
-          'The \'users\' service does not have an \'id\' property and no \'entityId\' option is set',
-          'message should be \'The \'users\' service does not have an \'id\' property and no \'entityId\' option is set\''
+          'The \'users\' service does not have an \'id\' property and no \'entityId\' option is set.',
+          'message should be \'The \'users\' service does not have an \'id\' property and no \'entityId\' option is set.\''
         )
       }
     })
@@ -481,8 +482,7 @@ describe('The Auth0Service', () => {
       try {
         await authenticateHook(contexts.errorContext)
         assert.fail('Should never get here')
-      }
-      catch (err) {
+      } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', '\'name\' should be \'NotAuthenticated\'')
         assert.strictEqual(
           err.message,
@@ -502,8 +502,7 @@ describe('The Auth0Service', () => {
       try {
         await authenticateHook(authContext)
         assert.fail('Should never get here')
-      }
-      catch (err) {
+      } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
         assert.strictEqual(err.message, 'The authenticate hook does not need to be used on the authentication service', 'wrong message')
       }
@@ -513,8 +512,7 @@ describe('The Auth0Service', () => {
       try {
         await authenticateHook(contexts.noAuthenticationContext)
         assert.fail('Should never get here')
-      }
-      catch (err) {
+      } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
         assert.strictEqual(err.message, 'Not authenticated', 'wrong message')
       }
@@ -529,10 +527,10 @@ describe('The Auth0Service', () => {
       try {
         await authenticateHook(contexts.noAuthorizationHeaderContext)
         assert.fail('Should never get here')
-      }
-      catch (err) {
+      } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
-        assert.strictEqual(err.message, 'No access token was received', 'wrong message')
+        assert.strictEqual(err.message, 'Token could not be verified', 'wrong message')
+        assert.strictEqual(err.data.message, 'The access token was malformed or missing', 'wrong message')
       }
     })
 
@@ -540,10 +538,10 @@ describe('The Auth0Service', () => {
       try {
         await authenticateHook(contexts.malformedTokenContext)
         assert.fail('Should never get here')
-      }
-      catch (err) {
+      } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
-        assert.strictEqual(err.message, 'The access token was malformed', 'wrong message')
+        assert.strictEqual(err.message, 'Token could not be verified', 'wrong message')
+        assert.strictEqual(err.data.message, 'The access token was malformed or missing', 'wrong message')
       }
     })
 
@@ -551,8 +549,7 @@ describe('The Auth0Service', () => {
       try {
         await authenticateHook(contexts.unknownMemberContext)
         assert.fail('Should never get here')
-      }
-      catch (err) {
+      } catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
         assert.strictEqual(err.message, 'Could not find user with this user_id in the database', 'wrong message')
       }
@@ -563,6 +560,9 @@ describe('The Auth0Service', () => {
       assert.deepEqual(context, contexts.alreadyAuthenticatedContext, 'the contexts were not the same')
     })
 
+    /**
+     * TODO: Do we need so many nested layers of error catching?
+     */
     it('throws an error if the token cannot be verified', async () => {
       try {
         await authenticateHook(contexts.invalidIssuerMemberContext)
@@ -571,7 +571,7 @@ describe('The Auth0Service', () => {
       catch (err) {
         assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
         assert.strictEqual(err.message, 'Token could not be verified', 'wrong message')
-        assert.strictEqual(err.data, 'jwt issuer invalid. expected: https://example.auth0.com/', 'wrong data')
+        assert.strictEqual(err.data.message, 'jwt issuer invalid. expected: https://example.auth0.com/', 'wrong data')
       }
     })
 
@@ -614,6 +614,7 @@ describe('The Auth0Service', () => {
         ]
       })
     })
+
     it('is a function', () => {
       assert(typeof fromAuth0Hook === 'function', 'fromAuth0() is not a function.')
     })
@@ -634,33 +635,19 @@ describe('The Auth0Service', () => {
     })
 
     it('can use whitelist overridden in config', async () => {
-      const customConfig = Object.assign({}, config)
-      customConfig.auth0.whitelist = ['66.66.66.66']
+      const customConfig = Object.assign({}, config, {
+        auth0: {
+          domain: 'example.auth0.com',
+          whitelist: ['66.66.66.66']
+        }
+      })
       app.set('authentication', customConfig)
       const isWhitelisted = await fromAuth0Hook(contexts.notFromAuth0Context)
       assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
     })
   })
 
-  it('prevents external requests from accessing the `keys` service', async () => {
-    const keysHooks = app.service('keys').__hooks.before
-    const externalContext = contexts.currentValidTokenMemberContext
-    const serverContext = contexts.serverContext;
-    ['find', 'get', 'create', 'update', 'patch', 'remove'].forEach(
-      hook => {
-        assert(Array.isArray(keysHooks[hook]), `No "${hook}" hooks are defined`)
-        assert(keysHooks[hook].length, 1, `Wrong number of "${hook}" hooks defined`)
-        const disallow = keysHooks[hook][0]
-        assert(typeof disallow === 'function', '`disallow()` is not a function')
-        externalContext.method = hook
-        serverContext.method = hook
-        assert.throws(() => { disallow(externalContext) }, `"${hook}" hook doesn't throw for external context`)
-        assert.strictEqual(disallow(serverContext), serverContext, `Disallow "${hook}" returned the wrong result`)
-      }
-    )
-  })
-
-  it('registers authenticate() to run before all non-Auth0, external REST requests', () => {
+  xit('registers authenticate() to run before all non-Auth0, external REST requests', async () => {
     ['find', 'get', 'create', 'update', 'patch', 'remove'].forEach(
       async hook => {
         let authenticateHook
@@ -690,50 +677,50 @@ describe('The Auth0Service', () => {
   })
 
   describe('connection() hook', () => {
-    let connectionHook
-    before(() => {
-      connectionHook = connection()
-    })
-
-    it('is a function', () => {
-      assert(typeof connectionHook === 'function', '`connectionHook()` should be a function')
-    })
 
     it('returns the passed authentication params on create (login)', async () => {
-      const context = connectionHook(contexts.createValidTokenConnectionContext)
+      const connectionHook = connection('login')
+      // console.log(service.handleConnection)
+      contexts.createValidTokenConnectionContext.service = service
+      const context = await connectionHook(contexts.createValidTokenConnectionContext)
       assert.deepEqual(context, contexts.createValidTokenConnectionContext, 'the contexts differ')
+      connection('disconnect')(contexts.createValidTokenConnectionContext)
     })
 
     it('returns the passed authentication params on create (login) if there is no connection', async () => {
-      const context = connectionHook(contexts.noConnectionContext)
+      const connectionHook = connection('login')
+      const context = await connectionHook(contexts.noConnectionContext)
       assert.deepEqual(context, contexts.noConnectionContext, 'the contexts differ')
+      connection('disconnect')(contexts.noConnectionContext)
     })
 
-    it('removes the authentication info from the connection context on logout', () => {
-      const context = connectionHook(contexts.removeValidTokenConnectionContext)
+    it('removes the authentication info from the connection context on logout', async () => {
+      const connectionHook = connection('logout')
+      contexts.removeValidTokenConnectionContext.service = service
+      const context = await connectionHook(contexts.removeValidTokenConnectionContext)
       assert.deepEqual(context, {
         app,
         type: 'after',
         method: 'remove',
         params: {
-          connection: {},
+          connection: {
+            strategy: 'auth0'
+          },
           provider: 'socketio',
         },
         result: {
           accessToken: jwts.currentMemberJWT,
           strategy: 'auth0'
-        }
+        },
+        service
       }, 'the contexts do not match')
     })
+    connection('disconnect')(contexts.removeValidTokenConnectionContext)
   })
 
   describe('events() hook', () => {
-    let eventsHook
-    before(() => {
-      eventsHook = events()
-    })
-
     it('emits the login event', done => {
+      const eventHook = event('login')
       app.once('login', (result, params, context) => {
         try {
           assert.deepEqual(result, contexts.createValidTokenConnectionContext.result)
@@ -744,10 +731,11 @@ describe('The Auth0Service', () => {
           done(err)
         }
       })
-      eventsHook(contexts.createValidTokenConnectionContext)
+      eventHook(contexts.createValidTokenConnectionContext)
     })
 
     it('emits the logout event', done => {
+      const eventHook = event('logout')
       app.once('logout', (result, params, context) => {
         try {
           assert.deepEqual(result, contexts.removeValidTokenConnectionContext.result)
@@ -758,7 +746,7 @@ describe('The Auth0Service', () => {
           done(err)
         }
       })
-      eventsHook(contexts.removeValidTokenConnectionContext)
+      eventHook(contexts.removeValidTokenConnectionContext)
     })
   })
 })

@@ -1,0 +1,15 @@
+{
+  "header": {
+    "typ": "JWT",
+    "alg": "RS256",
+    "kid": "goodKid"
+  },
+  "payload": {
+    "sub": "auth0|currentValidTokenMember",
+    "aud": [
+      "https://example.auth0.com/api/v2/",
+      "https://example.auth0.com/userinfo"
+    ],
+    "iss": "https://example.auth0.com/"
+  }
+}
