@@ -12,13 +12,14 @@
     "coverage": "nyc report --reporter=text-lcov | coveralls",
     "eslint": "eslint lib/. test/. --config .eslintrc.json",
     "mocha": "mocha --recursive --timeout 10000",
-    "publish": "git push origin --tags && npm run changelog && git push origin",
+    "publish": "git push origin --tags && yarn changelog && git push origin",
     "release:major": "npm version major && npm publish",
     "release:minor": "npm version minor && npm publish",
     "release:patch": "npm version patch && npm publish",
     "release:prerelease": "npm version prerelease && npm publish --tag pre",
-    "test": "npm run eslint && nyc npm run mocha",
-    "test:watch": "npm run eslint && mocha --recursive --timeout 10000 --watch",
+    "test": "yarn eslint && yarn mocha",
+    "test:coverage": "yarn eslint && nyc mocha",
+    "test:watch": "yarn eslint && mocha --recursive --timeout 10000 --watch",
     "semantic-release": "semantic-release"
   },
   "repository": {
@@ -39,9 +40,9 @@
   },
   "homepage": "https://github.com/morphatic/feathers-auth0-strategy#readme",
   "devDependencies": {
-    "@feathersjs/configuration": "^4.3.3",
-    "@feathersjs/express": "^4.3.3",
-    "@feathersjs/feathers": "^4.3.3",
+    "@feathersjs/configuration": "^4.3.4",
+    "@feathersjs/express": "^4.3.4",
+    "@feathersjs/feathers": "^4.3.4",
     "cz-conventional-changelog": "3.0.2",
     "eslint": "^6.5.1",
     "feathers-nedb": "^5.0.2",
@@ -51,7 +52,7 @@
     "semantic-release": "^15.13.24"
   },
   "dependencies": {
-    "@feathersjs/authentication": "^4.3.3",
+    "@feathersjs/authentication": "^4.3.4",
     "axios": "^0.19.0",
     "feathers-hooks-common": "^4.20.7",
     "feathers-memory": "^4.0.1"
