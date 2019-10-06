@@ -3,7 +3,7 @@ const feathers = require('@feathersjs/feathers')
 const Auth0Strategy = require('../lib/strategy')
 const Auth0Service = require('../lib/service')
 const { authenticate, hooks } = require('@feathersjs/authentication')
-const fromAuth0 = require('../lib/hooks/from-auth0')
+const { fromAuth0, usIPAddresses, euIPAddresses, auIPAddresses } = require('../lib/hooks/from-auth0')
 const { connection, event } = hooks
 const {
   app,
@@ -48,7 +48,8 @@ const defaultConfig = {
     issuer: 'https://example.auth0.com/'
   },
   schemes: ['Bearer', 'JWT'],
-  service: 'users'
+  service: 'users',
+  whitelist: []
 }
 
 /**
@@ -289,7 +290,6 @@ describe('The Auth0Strategy', () => {
 
   describe('handleConnection() method', () => {
     it('is a function', () => {
-      console.log(strategy.connection)
       assert(typeof strategy.handleConnection === 'function', 'authenticate() is not a function.')
     })
 
@@ -305,13 +305,48 @@ describe('The Auth0Service', () => {
     app.use('/authentication', service)
   })
 
-  after(() => {
-
-  })
-
   describe('setup() method', () => {
     it('is a function', () => {
       assert(typeof service.setup === 'function', 'setup() is not a function')
+    })
+
+    it('sets a dummy secret if auth0 is the only strategy', () => {
+      const appWithDummySecret = feathers()
+      appWithDummySecret.use('/users', {
+        async find () { return [] }
+      })
+      const dummySecretService = new Auth0Service(appWithDummySecret, 'authentication', {
+        auth0: { domain: 'example.auth0.com' },
+        authStrategies: ['auth0'],
+        entity: 'user',
+        entityId: 'user_id',
+        service: 'users',
+      })
+      dummySecretService.register('auth0', new MockAuth0Strategy())
+      appWithDummySecret.use('/authentication', dummySecretService)
+      appWithDummySecret.setup()
+      const { secret } = appWithDummySecret.get('authentication')
+      assert.strictEqual(secret, 'I_am_not_used', 'The dummy secret was not set')
+    })
+
+    it('does not set a dummy secret if auth0 is not the only strategy', () => {
+      const appWithoutDummySecret = feathers()
+      appWithoutDummySecret.use('/users', {
+        async find () { return [] }
+      })
+      const dummySecretService = new Auth0Service(appWithoutDummySecret, 'authentication', {
+        auth0: { domain: 'example.auth0.com' },
+        authStrategies: ['auth0', 'local'],
+        entity: 'user',
+        entityId: 'user_id',
+        secret: 'i_am_not_overridden',
+        service: 'users',
+      })
+      dummySecretService.register('auth0', new MockAuth0Strategy())
+      appWithoutDummySecret.use('/authentication', dummySecretService)
+      appWithoutDummySecret.setup()
+      const { secret } = appWithoutDummySecret.get('authentication')
+      assert.strictEqual(secret, 'i_am_not_overridden', 'The dummy secret was not set')
     })
 
     it('throws an error if auth0 domain is not set', async () => {
@@ -319,8 +354,7 @@ describe('The Auth0Service', () => {
         const appWithUndefinedService = feathers()
         const undefinedService = new Auth0Service(appWithUndefinedService, 'authentication', {
           auth0: {
-            domain: undefined,
-            keysService: 'keys'
+            domain: undefined
           },
           authStrategies: ['auth0'],
           entity: 'user',
@@ -347,8 +381,7 @@ describe('The Auth0Service', () => {
         const appWithUndefinedService = feathers()
         const undefinedService = new Auth0Service(appWithUndefinedService, 'authentication', {
           auth0: {
-            domain: 'example.auth0.com',
-            keysService: 'keys'
+            domain: 'example.auth0.com'
           },
           authStrategies: ['auth0'],
           entity: 'user',
@@ -375,8 +408,7 @@ describe('The Auth0Service', () => {
         const appWithNoUsersService = feathers()
         const noUsersService = new Auth0Service(appWithNoUsersService, 'authentication', {
           auth0: {
-            domain: 'example',
-            keysService: 'keys'
+            domain: 'example'
           },
           authStrategies: ['auth0'],
           entity: 'user',
@@ -403,8 +435,7 @@ describe('The Auth0Service', () => {
         const appWithNoUserID = feathers()
         const noUserIDService = new Auth0Service(appWithNoUserID, 'authentication', {
           auth0: {
-            domain: 'example',
-            keysService: 'keys'
+            domain: 'example'
           },
           authStrategies: ['auth0'],
           entity: 'user',
@@ -427,6 +458,104 @@ describe('The Auth0Service', () => {
           'message should be \'The \'users\' service does not have an \'id\' property and no \'entityId\' option is set.\''
         )
       }
+    })
+
+    it('does not register the authenticate() hook on all services if autoregister is false', () => {
+      const appAutoRegister = feathers()
+      const autoRegisterService = new Auth0Service(appAutoRegister, 'authentication', {
+        auth0: {
+          autoregister: false,
+          domain: 'example'
+        },
+        authStrategies: ['auth0'],
+        entity: 'user',
+        entityId: 'user_id',
+        service: 'users'
+      })
+      autoRegisterService.register('auth0', new MockAuth0Strategy())
+      appAutoRegister.use('/authentication', autoRegisterService)
+      appAutoRegister.use('/users', { async find () { return [] } })
+      appAutoRegister.use('/products', { async find () { return [] } })
+      appAutoRegister.setup()
+      assert.strictEqual(
+        typeof appAutoRegister.service('users').__hooks.before.find,
+        'undefined',
+        'A before find hook was registered on the users service when it should not be'
+      )
+      assert.strictEqual(
+        typeof appAutoRegister.service('products').__hooks.before.find,
+        'undefined',
+        'A before find hook was registered on the products service when it should not be'
+      )
+    })
+
+    it('registers the authenticate() hook on all services if autoregister is true', () => {
+      const appAutoRegister = feathers()
+      const autoRegisterService = new Auth0Service(appAutoRegister, 'authentication', {
+        auth0: {
+          autoregister: true,
+          domain: 'example'
+        },
+        authStrategies: ['auth0'],
+        entity: 'user',
+        entityId: 'user_id',
+        service: 'users'
+      })
+      autoRegisterService.register('auth0', new MockAuth0Strategy())
+      appAutoRegister.use('/authentication', autoRegisterService)
+      appAutoRegister.use('/users', { async find () { return [] } })
+      appAutoRegister.use('/products', { async find () { return [] } })
+      appAutoRegister.setup()
+      assert.strictEqual(
+        typeof appAutoRegister.service('authentication').__hooks.before.find,
+        'undefined',
+        'The before find authenticate hook was not registered on the authenticate service when it should not be'
+      )
+      assert.strictEqual(
+        typeof appAutoRegister.service('users').__hooks.before.find[0],
+        'function',
+        'The before find authenticate hook was not registered on the users service when it should be'
+      )
+      assert.strictEqual(
+        typeof appAutoRegister.service('products').__hooks.before.find[0],
+        'function',
+        'The before find authenticate hook was not registered on the products service when it should be'
+      )
+    })
+
+    it('registers the authenticate() hook on specified services if autoregister is true', () => {
+      const appAutoRegister = feathers()
+      const autoRegisterService = new Auth0Service(appAutoRegister, 'authentication', {
+        auth0: {
+          autoregister: true,
+          domain: 'example',
+          services: ['products']
+        },
+        authStrategies: ['auth0'],
+        entity: 'user',
+        entityId: 'user_id',
+        service: 'users'
+      })
+      autoRegisterService.register('auth0', new MockAuth0Strategy())
+      appAutoRegister.use('/authentication', autoRegisterService)
+      appAutoRegister.use('/users', { async find () { return [] } })
+      appAutoRegister.use('/products', { async find () { return [] } })
+      appAutoRegister.setup()
+      assert.strictEqual(
+        typeof appAutoRegister.service('authentication').__hooks.before.find,
+        'undefined',
+        'The before find authenticate hook was not registered on the authenticate service when it should not be'
+      )
+      assert.strictEqual(
+        typeof appAutoRegister.service('users').__hooks.before.find,
+        'undefined',
+        'The before find authenticate hook was registered on the users service when it should not be'
+      )
+      assert.strictEqual(
+        typeof appAutoRegister.service('products').__hooks.before.find[0],
+        'function',
+        'The before find authenticate hook was not registered on the products service when it should be'
+      )
     })
   })
 
@@ -584,34 +713,15 @@ describe('The Auth0Service', () => {
   describe('fromAuth0() hook', () => {
     let fromAuth0Hook
     let fromEuropeanAuth0Hook
+    let fromAustralianAuth0Hook
 
     before(() => {
       fromAuth0Hook = fromAuth0()
       fromEuropeanAuth0Hook = fromAuth0({
-        whitelist: [
-          '52.28.56.226',
-          '52.28.45.240',
-          '52.16.224.164',
-          '52.16.193.66',
-          '34.253.4.94',
-          '52.50.106.250',
-          '52.211.56.181',
-          '52.213.38.246',
-          '52.213.74.69',
-          '52.213.216.142',
-          '35.156.51.163',
-          '35.157.221.52',
-          '52.28.184.187',
-          '52.28.212.16',
-          '52.29.176.99',
-          '52.57.230.214',
-          '54.76.184.103',
-          '52.210.122.50',
-          '52.208.95.174',
-          '52.210.122.50',
-          '52.208.95.174',
-          '54.76.184.103'
-        ]
+        whitelist: euIPAddresses
+      })
+      fromAustralianAuth0Hook = fromAuth0({
+        whitelist: auIPAddresses
       })
     })
 
@@ -629,12 +739,17 @@ describe('The Auth0Service', () => {
       assert(isWhitelisted, 'an IP address on the whitelist was rejected')
     })
     
+    it('returns true if the request context comes from an Australian whitelisted IP address', async () => {
+      const isWhitelisted = await fromAustralianAuth0Hook(contexts.fromAustralianAuth0Context)
+      assert(isWhitelisted, 'an IP address on the whitelist was rejected')
+    })
+    
     it('returns false if the request context comes from a non-whitelisted IP address', async () => {
       const isWhitelisted = await fromAuth0Hook(contexts.notFromAuth0Context)
       assert(!isWhitelisted, 'an IP address not on the whitelist was accepted')
     })
 
-    it('can use whitelist overridden in config', async () => {
+    it('can use whitelist overridden in config specified as an array', async () => {
       const customConfig = Object.assign({}, config, {
         auth0: {
           domain: 'example.auth0.com',
@@ -645,42 +760,62 @@ describe('The Auth0Service', () => {
       const isWhitelisted = await fromAuth0Hook(contexts.notFromAuth0Context)
       assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
     })
-  })
 
-  xit('registers authenticate() to run before all non-Auth0, external REST requests', async () => {
-    ['find', 'get', 'create', 'update', 'patch', 'remove'].forEach(
-      async hook => {
-        let authenticateHook
-        try {
-          const hooks = app.service('users').__hooks.before[hook]
-          // console.log(testApp.__hooks) // eslint-disable-line
-          assert(Array.isArray(hooks), `No "${hook}" hooks are defined for the app`)
-          assert(hooks.length > 0, `Wrong number of "${hook}" hooks defined for the app`)
-          authenticateHook = hooks.pop()
-          await authenticateHook(contexts.invalidIssuerMemberContext)
-          assert.fail('Should never get here.')
-        } catch (err) {
-          assert.strictEqual(err.name, 'NotAuthenticated', 'should be \'NotAuthenticated\'')
+    it('can use US whitelist overridden in config specified as a key string', async () => {
+      const customConfig = Object.assign({}, config, {
+        auth0: {
+          domain: 'example.auth0.com',
+          whitelist: 'us'
         }
-        try {
-          const context = await authenticateHook(contexts.currentValidTokenMemberContext)
-          assert.deepEqual(
-            context,
-            contexts.currentValidTokenMemberContext,
-            `authorizeRest() "${hook}" returned the wrong result`
-          )
-        } catch (err) {
-          // noop
+      })
+      app.set('authentication', customConfig)
+      const isWhitelisted = await fromAuth0Hook(contexts.fromAuth0Context)
+      assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
+    })
+
+    it('can use European whitelist overridden in config specified as a key string', async () => {
+      const customConfig = Object.assign({}, config, {
+        auth0: {
+          domain: 'example.auth0.com',
+          whitelist: 'eu'
         }
-      }
-    )          
+      })
+      app.set('authentication', customConfig)
+      const isWhitelisted = await fromEuropeanAuth0Hook(contexts.fromEuropeanAuth0Context)
+      assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
+    })
+
+    it('can use Australian whitelist overridden in config specified as a key string', async () => {
+      const customConfig = Object.assign({}, config, {
+        auth0: {
+          domain: 'example.auth0.com',
+          whitelist: 'au'
+        }
+      })
+      app.set('authentication', customConfig)
+      const isWhitelisted = await fromAustralianAuth0Hook(contexts.fromAustralianAuth0Context)
+      assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
+    })
+
+    it('can use whitelist overridden in config as multiple regions combined', async () => {
+      const customConfig = Object.assign({}, config, {
+        auth0: {
+          domain: 'example.auth0.com',
+          whitelist: [...usIPAddresses, ...euIPAddresses]
+        }
+      })
+      app.set('authentication', customConfig)
+      let isWhitelisted = await fromEuropeanAuth0Hook(contexts.fromEuropeanAuth0Context)
+      assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
+      isWhitelisted = await fromAuth0Hook(contexts.fromAuth0Context)
+      assert(isWhitelisted, 'The IP address whitelist was not correctly overridden')
+    })
   })
 
   describe('connection() hook', () => {
 
     it('returns the passed authentication params on create (login)', async () => {
       const connectionHook = connection('login')
-      // console.log(service.handleConnection)
       contexts.createValidTokenConnectionContext.service = service
       const context = await connectionHook(contexts.createValidTokenConnectionContext)
       assert.deepEqual(context, contexts.createValidTokenConnectionContext, 'the contexts differ')
@@ -715,7 +850,6 @@ describe('The Auth0Service', () => {
         service
       }, 'the contexts do not match')
     })
-    connection('disconnect')(contexts.removeValidTokenConnectionContext)
   })
 
   describe('events() hook', () => {

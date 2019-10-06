@@ -58,7 +58,7 @@ const fromAuth0Context = {
     headers: {
       authorization: null
     },
-    ip: '34.195.142.251'
+    ip: '35.167.74.121'
   }
 }
 const fromEuropeanAuth0Context = {
@@ -70,6 +70,17 @@ const fromEuropeanAuth0Context = {
       authorization: null
     },
     ip: '52.28.56.226'
+  }
+}
+const fromAustralianAuth0Context = {
+  app,
+  type: 'before',
+  params: {
+    provider: 'external',
+    headers: {
+      authorization: null
+    },
+    ip: '52.64.84.177'
   }
 }
 const notFromAuth0Context = {
@@ -223,6 +234,7 @@ module.exports = {
     serverContext,
     fromAuth0Context,
     fromEuropeanAuth0Context,
+    fromAustralianAuth0Context,
     notFromAuth0Context,
     noAuthenticationContext,
     noAuthorizationHeaderContext,

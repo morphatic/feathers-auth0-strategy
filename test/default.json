@@ -1,6 +1,7 @@
 {
   "authentication": {
     "auth0": {
+      "autoregister": true,
       "domain": "example.auth0.com"
     },
     "authStrategies": ["auth0"]
