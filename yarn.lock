@@ -123,14 +123,14 @@
   resolved "https://registry.yarnpkg.com/@feathers-plus/batch-loader/-/batch-loader-0.3.6.tgz#1e096e95fcdffb83fb1a65468e6ef80b416f7d98"
   integrity sha512-r+n31iZ/B5Rl1mLkC9/S20UI445MdkZvE3VBmjupep2t8OuyTYHPkFEgR25HY6khH+RothK1VL3B5eumk9N2QQ==
 
-"@feathersjs/adapter-commons@^4.0.0-pre.4", "@feathersjs/adapter-commons@^4.3.3":
-  version "4.3.3"
-  resolved "https://registry.yarnpkg.com/@feathersjs/adapter-commons/-/adapter-commons-4.3.3.tgz#04abe5f7b796e20110b02f5f127b83ada0687381"
-  integrity sha512-p5jEwcMZVqtu4eBjWP4cR9KE+gCL54nvPGN74Xmv3XPa8u8dKu85XqbyWr/Keqn7bg2wQN7G8tOqdK1pTkfhyQ==
+"@feathersjs/adapter-commons@^4.3.3", "@feathersjs/adapter-commons@^4.3.6":
+  version "4.3.6"
+  resolved "https://registry.yarnpkg.com/@feathersjs/adapter-commons/-/adapter-commons-4.3.6.tgz#5cdc56718b0fa0dad81405d5edf01f15c6c198ef"
+  integrity sha512-k2Pz9YiR5qHA4MxAGrHPjJkT+R5TrPy6os+r5+A4eFnEQkgvWSDURNGOi1j2KaFbITwto2OkH2eI55NLcxwq0g==
   dependencies:
     "@feathersjs/commons" "^4.3.0"
-    "@feathersjs/errors" "^4.3.3"
-    "@feathersjs/feathers" "^4.3.3"
+    "@feathersjs/errors" "^4.3.4"
+    "@feathersjs/feathers" "^4.3.4"
 
 "@feathersjs/authentication@^4.3.4":
   version "4.3.4"
@@ -151,7 +151,7 @@
   resolved "https://registry.yarnpkg.com/@feathersjs/commons/-/commons-1.4.4.tgz#cd8c0a4dfc7ba1027d359ae80542381241564728"
   integrity sha512-ZPpzyZA3CPfoa9AuFv3BJUI/ubzaaXixp8T/pqeMFPT6DOaU/6oF7lz1RxwimzfJNna4gy/HByt0EoLSI3BKWg==
 
-"@feathersjs/commons@^4.0.0", "@feathersjs/commons@^4.0.0-pre.4", "@feathersjs/commons@^4.3.0":
+"@feathersjs/commons@^4.0.0", "@feathersjs/commons@^4.3.0":
   version "4.3.0"
   resolved "https://registry.yarnpkg.com/@feathersjs/commons/-/commons-4.3.0.tgz#6b0993ac790382aa28ec8a138f3e91501973b418"
   integrity sha512-N3CDavCNRp+usgyfDSFXCwETnp4nIEevl5v1nqULGhPYco0SjF15zu4hYyd3GCn0aAwzaIehYyaMcdee9Eo1KQ==
@@ -172,14 +172,7 @@
   dependencies:
     debug "^4.0.0"
 
-"@feathersjs/errors@^4.0.0-pre.4", "@feathersjs/errors@^4.3.3":
-  version "4.3.3"
-  resolved "https://registry.yarnpkg.com/@feathersjs/errors/-/errors-4.3.3.tgz#4fc2956013e3599999fd8a14d5b61deb61a21476"
-  integrity sha512-vqW6TDZIj7x77qenghGrWVhURN/SRYg9DjnE9aWoR4TPv9z+w3UzDl5luUW/KhHa7+2wh/TDGIdfUF5PTv8Mpg==
-  dependencies:
-    debug "^4.1.1"
-
-"@feathersjs/errors@^4.3.4":
+"@feathersjs/errors@^4.3.3", "@feathersjs/errors@^4.3.4":
   version "4.3.4"
   resolved "https://registry.yarnpkg.com/@feathersjs/errors/-/errors-4.3.4.tgz#8c2a9a64b9ae8e1bf8c173497258979dad1c4e6d"
   integrity sha512-x4QfpBbMHrsY7ktMxYDVfYsJf7YVjVOFWThwJ3LgKFC6WNu9YojRJmxRDGftWTQA2MalaJPmOAYCapdp50mwKw==
@@ -208,16 +201,6 @@
     debug "^4.0.0"
     events "^3.0.0"
     uberproto "^2.0.2"
-
-"@feathersjs/feathers@^4.3.3":
-  version "4.3.3"
-  resolved "https://registry.yarnpkg.com/@feathersjs/feathers/-/feathers-4.3.3.tgz#6870a6400e3ccaf8d8611168b28eff6631c2ef5d"
-  integrity sha512-FHbKn9XdUjZlXUvszn1sVamPWk2X/UBEpPHD6XyGq9kXa66fm9rqbEFueZ3MXc6Jsva+uW1m+CLQBYUvaTJhLQ==
-  dependencies:
-    "@feathersjs/commons" "^4.3.0"
-    debug "^4.1.1"
-    events "^3.0.0"
-    uberproto "^2.0.4"
 
 "@feathersjs/feathers@^4.3.4":
   version "4.3.4"
@@ -2212,13 +2195,13 @@ feathers-hooks-common@^4.20.7:
     traverse "^0.6.6"
 
 feathers-memory@^4.0.1:
-  version "4.0.1"
-  resolved "https://registry.yarnpkg.com/feathers-memory/-/feathers-memory-4.0.1.tgz#6fae392ecacb652373c206851e7cf1725d5897c6"
-  integrity sha512-1COLIpsYVR9n6eJUCQqpeYfxtEBxDgPruHZcvzdrPAXOKRYOdbPg4xqRBoxM30cazov4FNWfncIbszBE6ag5bQ==
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/feathers-memory/-/feathers-memory-4.1.0.tgz#3cd70e20ebf1dfe4b996e8bf0a22b65cdb8173a3"
+  integrity sha512-tR8DFqLsSk2w7tpSdHjA5RgPHTu3X5R3L3Kob2K+E3b/Q5cDkI6AYQarDQOiwekAyqxkkp/fm7Fg0qYdu4Ua6Q==
   dependencies:
-    "@feathersjs/adapter-commons" "^4.0.0-pre.4"
-    "@feathersjs/commons" "^4.0.0-pre.4"
-    "@feathersjs/errors" "^4.0.0-pre.4"
+    "@feathersjs/adapter-commons" "^4.3.6"
+    "@feathersjs/commons" "^4.3.0"
+    "@feathersjs/errors" "^4.3.4"
     sift "^8.5.0"
 
 feathers-nedb@^5.0.2:
