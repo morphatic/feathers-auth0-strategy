@@ -44,7 +44,7 @@
     "@feathersjs/express": "^4.3.4",
     "@feathersjs/feathers": "^4.3.4",
     "cz-conventional-changelog": "3.0.2",
-    "eslint": "^6.5.1",
+    "eslint": "^7.4.0",
     "feathers-nedb": "^5.0.2",
     "mocha": "^6.2.1",
     "nedb": "^1.8.0",
