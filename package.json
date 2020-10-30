@@ -49,7 +49,7 @@
     "mocha": "^6.2.1",
     "nedb": "^1.8.0",
     "nyc": "^14.1.1",
-    "semantic-release": "^15.13.24"
+    "semantic-release": "^17.2.2"
   },
   "dependencies": {
     "@feathersjs/authentication": "^4.3.4",
