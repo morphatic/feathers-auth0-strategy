@@ -43,7 +43,7 @@
     "@feathersjs/configuration": "^4.3.4",
     "@feathersjs/express": "^4.3.4",
     "@feathersjs/feathers": "^4.3.4",
-    "cz-conventional-changelog": "3.0.2",
+    "cz-conventional-changelog": "3.3.0",
     "eslint": "^7.12.1",
     "feathers-nedb": "^5.0.2",
     "mocha": "^8.2.0",
