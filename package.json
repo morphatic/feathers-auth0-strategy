@@ -43,17 +43,17 @@
     "@feathersjs/configuration": "^4.3.4",
     "@feathersjs/express": "^4.3.4",
     "@feathersjs/feathers": "^4.3.4",
-    "cz-conventional-changelog": "3.0.2",
+    "cz-conventional-changelog": "3.3.0",
     "eslint": "^7.12.1",
     "feathers-nedb": "^5.0.2",
     "mocha": "^8.2.0",
     "nedb": "^1.8.0",
-    "nyc": "^14.1.1",
+    "nyc": "^15.1.0",
     "semantic-release": "^17.2.2"
   },
   "dependencies": {
     "@feathersjs/authentication": "^4.3.4",
-    "axios": "^0.19.0",
+    "axios": "^0.21.0",
     "feathers-hooks-common": "^5.0.4",
     "feathers-memory": "^4.0.1"
   },
