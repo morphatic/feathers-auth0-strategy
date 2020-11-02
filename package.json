@@ -54,7 +54,7 @@
   "dependencies": {
     "@feathersjs/authentication": "^4.3.4",
     "axios": "^0.19.0",
-    "feathers-hooks-common": "^4.20.7",
+    "feathers-hooks-common": "^5.0.4",
     "feathers-memory": "^4.0.1"
   },
   "engines": {
