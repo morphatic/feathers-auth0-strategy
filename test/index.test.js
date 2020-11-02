@@ -294,6 +294,40 @@ describe('The Auth0Strategy', () => {
     })
 
   })
+
+  describe('parse() method', () => {
+    it('is a function', () => {
+      assert(typeof strategy.parse === 'function', 'parse() is not a function.')
+    })
+    it('extracts an accessToken value from an HTTP header scheme', () => {
+      const result = strategy.parse({
+        headers: {
+          authorization: 'Bearer the_token_value'
+        }
+      })
+      assert.deepEqual(result, {
+        strategy: 'auth0',
+        accessToken: 'the_token_value'
+      }, 'The expected parse() result was not returned')
+    })
+    it('extracts the accessToken value from a plain HTTP header', () => {
+      const result = strategy.parse({
+        headers: {
+          authorization: 'the_token_value'
+        }
+      })
+      assert.deepEqual(result, {
+        strategy: 'auth0',
+        accessToken: 'the_token_value'
+      }, 'The expected parse() result was not returned')
+    })
+    it('returns null for an absent header', () => {
+      const result = strategy.parse({
+        headers: {}
+      })
+      assert.strictEqual(result, null, 'Malformed parse() result')
+    })
+  })
 })
 
 describe('The Auth0Service', () => {
@@ -606,7 +640,7 @@ describe('The Auth0Service', () => {
         )
       }
     })
-    
+
     it('throws an error if called from an error context', async () => {
       try {
         await authenticateHook(contexts.errorContext)
@@ -620,7 +654,7 @@ describe('The Auth0Service', () => {
         )
       }
     })
-    
+
     it('throws an error if trying to authenticate the `/authentication` path', async () => {
       const authContext = {
         app,
@@ -728,22 +762,22 @@ describe('The Auth0Service', () => {
     it('is a function', () => {
       assert(typeof fromAuth0Hook === 'function', 'fromAuth0() is not a function.')
     })
-    
+
     it('returns true if the request context comes from a whitelisted IP address', async () => {
       const isWhitelisted = await fromAuth0Hook(contexts.fromAuth0Context)
       assert(isWhitelisted, 'an IP address on the whitelist was rejected')
     })
-    
+
     it('returns true if the request context comes from a European whitelisted IP address', async () => {
       const isWhitelisted = await fromEuropeanAuth0Hook(contexts.fromEuropeanAuth0Context)
       assert(isWhitelisted, 'an IP address on the whitelist was rejected')
     })
-    
+
     it('returns true if the request context comes from an Australian whitelisted IP address', async () => {
       const isWhitelisted = await fromAustralianAuth0Hook(contexts.fromAustralianAuth0Context)
       assert(isWhitelisted, 'an IP address on the whitelist was rejected')
     })
-    
+
     it('returns false if the request context comes from a non-whitelisted IP address', async () => {
       const isWhitelisted = await fromAuth0Hook(contexts.notFromAuth0Context)
       assert(!isWhitelisted, 'an IP address not on the whitelist was accepted')
@@ -888,7 +922,7 @@ describe('The Auth0Service', () => {
 describe('The addIP middleware', () => {
   it('should be registered', () => {
     assert(
-      app._router && app._router.stack && app._router.stack.some(mw => mw.name === 'addIP'), 
+      app._router && app._router.stack && app._router.stack.some(mw => mw.name === 'addIP'),
       'the addIP middleware was not registered'
     )
   })
