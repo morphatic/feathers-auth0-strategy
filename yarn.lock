@@ -255,10 +255,10 @@
     long-timeout "^0.1.1"
     uuid "^8.3.0"
 
-"@feathersjs/commons@^4.3.0", "@feathersjs/commons@^4.5.8", "@feathersjs/commons@^4.5.9":
-  version "4.5.9"
-  resolved "https://registry.yarnpkg.com/@feathersjs/commons/-/commons-4.5.9.tgz#07340081b52b6c012b23019d65b8980118cb02d6"
-  integrity sha512-CiM6t9ljxcLwqQe2AkfCQqH2qFssjWYoP4z/Ida3IE+bMHMcQQv7aERYbQA6865FEIaHv9ytJL+QabfaUPhKAA==
+"@feathersjs/commons@^4.3.0", "@feathersjs/commons@^4.5.10", "@feathersjs/commons@^4.5.8", "@feathersjs/commons@^4.5.9":
+  version "4.5.10"
+  resolved "https://registry.yarnpkg.com/@feathersjs/commons/-/commons-4.5.10.tgz#e2dc526ce44f8e32c88fbb7bc3b89670e2781622"
+  integrity sha512-3d6HaknbSY3fuA+BIrIxQhxGlA7EKCmH4YK3KR+f2cg7vZYHNEl+Cf5XC2fP2V7kWrdVgLy2AeB3t6oxCIFGtQ==
 
 "@feathersjs/configuration@^4.3.4":
   version "4.5.9"
@@ -269,20 +269,20 @@
     config "^3.3.1"
     debug "^4.2.0"
 
-"@feathersjs/errors@^4.3.4", "@feathersjs/errors@^4.5.8", "@feathersjs/errors@^4.5.9":
-  version "4.5.9"
-  resolved "https://registry.yarnpkg.com/@feathersjs/errors/-/errors-4.5.9.tgz#8e998c59c01454a92f802f9b4846aafc3a677a83"
-  integrity sha512-JqrtbOk3EK5nSal9zI8OGO7qVVYRDDnHarYeINhftAJ26rz0H+Q9qRVrp26TVZ5RKCbXABKP6ObvmNw/gMkFvg==
+"@feathersjs/errors@^4.3.4", "@feathersjs/errors@^4.5.10", "@feathersjs/errors@^4.5.8", "@feathersjs/errors@^4.5.9":
+  version "4.5.10"
+  resolved "https://registry.yarnpkg.com/@feathersjs/errors/-/errors-4.5.10.tgz#d85a485aec7aaab0a62b05d4f292c09836d93a3f"
+  integrity sha512-IhPOpvKuyv2qEQG/A62MLbciRxZnjcshX5fgHRUUlPusWsBj/XU/TtVgakZVQiJ6SvprIi/IsGzAAHyquPQMuQ==
   dependencies:
     debug "^4.2.0"
 
 "@feathersjs/express@^4.3.4":
-  version "4.5.9"
-  resolved "https://registry.yarnpkg.com/@feathersjs/express/-/express-4.5.9.tgz#af8d67fe709801f1d4e655867abab5a8ac11d52c"
-  integrity sha512-voXUP1sMrTFJ9NVUncImELCYSnbIQqqO2j0RhsDE1qnYy/awRmzQCHkGsv23O+nwoq8zrhbWyG/TQpVinC2fdQ==
+  version "4.5.10"
+  resolved "https://registry.yarnpkg.com/@feathersjs/express/-/express-4.5.10.tgz#7a8c6ce2b3eae97b94b85e165be8cca8cc2a7c00"
+  integrity sha512-boNMQakPoX/7D0atO9cEq2WOkIt9v4GFjFSUdqpQIJwbCU+FKh9S6TySuIMkVDIeIIv7tp8byywVcaZoejUJZA==
   dependencies:
-    "@feathersjs/commons" "^4.5.9"
-    "@feathersjs/errors" "^4.5.9"
+    "@feathersjs/commons" "^4.5.10"
+    "@feathersjs/errors" "^4.5.10"
     "@types/express" "^4.17.8"
     debug "^4.2.0"
     express "^4.17.1"
