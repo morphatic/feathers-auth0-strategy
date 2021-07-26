@@ -46,7 +46,7 @@
     "cz-conventional-changelog": "3.3.0",
     "eslint": "^7.12.1",
     "feathers-nedb": "^5.0.2",
-    "mocha": "^8.2.0",
+    "mocha": "^9.0.3",
     "nedb": "^1.8.0",
     "nyc": "^15.1.0",
     "semantic-release": "^17.2.2"
